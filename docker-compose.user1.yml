@@ -1,0 +1,68 @@
+# Docker Compose - User 1
+#
+# Runs Open Notebook + SurrealDB for user 1.
+# Connects to shared Ollama and Speaches via notebook_network.
+#
+# Prerequisites: docker compose up -d  (shared services must be running)
+#
+# Start:  docker compose -f docker-compose.user1.yml up -d
+# Stop:   docker compose -f docker-compose.user1.yml down
+#
+# Frontend: http://localhost:8502
+# API:      http://localhost:5055
+
+services:
+  surrealdb_user1:
+    image: surrealdb/surrealdb:v2
+    container_name: surrealdb_user1
+    command: start --log info --user root --pass root rocksdb:/mydata/mydatabase.db
+    user: root
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./surreal_data_user1:/mydata
+    environment:
+      - SURREAL_EXPERIMENTAL_GRAPHQL=true
+    networks:
+      - notebook_network
+    restart: always
+    pull_policy: always
+
+  open_notebook_user1:
+    build:
+      context: .
+      dockerfile: Dockerfile.single
+    container_name: open_notebook_user1
+    ports:
+      - "8502:8502"
+      - "5055:5055"
+    environment:
+      # REQUIRED: Change this to your own secret string
+      - OPEN_NOTEBOOK_ENCRYPTION_KEY=eRxIXQmoud9TJc1YgZkf
+
+      # Database connection
+      - SURREAL_URL=ws://surrealdb_user1:8000/rpc
+      - SURREAL_USER=root
+      - SURREAL_PASSWORD=root
+      - SURREAL_NAMESPACE=user1
+      - SURREAL_DATABASE=open_notebook
+
+      # Ollama connection (shared service)
+      - OLLAMA_BASE_URL=http://ollama:11434
+
+      # Network access - set to your LAN IP so colleagues' browsers can reach the API
+      - API_URL=http://10.242.8.5:5055
+
+      # Access control - set a password so only authorised users can log in
+      - OPEN_NOTEBOOK_PASSWORD=eRxIXQmoud9TJc1YgZkf2
+    volumes:
+      - ./notebook_data_user1:/app/data
+    depends_on:
+      - surrealdb_user1
+    networks:
+      - notebook_network
+    restart: always
+
+networks:
+  notebook_network:
+    external: true
