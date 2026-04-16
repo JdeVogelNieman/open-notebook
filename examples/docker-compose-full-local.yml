@@ -57,7 +57,7 @@ services:
     #           capabilities: [gpu]
 
   speaches:
-    image: ghcr.io/speaches-ai/speaches:latest-cpu
+    image: ghcr.io/speaches-ai/speaches:latest-cuda
     container_name: speaches
     ports:
       - "8969:8000"

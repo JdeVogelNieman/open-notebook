@@ -7,6 +7,7 @@ import { itIT } from './it-IT';
 import { frFR } from './fr-FR';
 import { ruRU } from './ru-RU';
 import { bnIN } from './bn-IN';
+import { nlNL } from './nl-NL';
 
 export const resources = {
   'zh-CN': { translation: zhCN },
@@ -18,11 +19,12 @@ export const resources = {
   'fr-FR': { translation: frFR },
   'ru-RU': { translation: ruRU },
   'bn-IN': { translation: bnIN },
+  'nl-NL': { translation: nlNL },
 } as const;
 
 export type TranslationKeys = typeof enUS;
 
-export type LanguageCode = 'zh-CN' | 'en-US' | 'zh-TW' | 'pt-BR' | 'ja-JP' | 'it-IT' | 'fr-FR' | 'ru-RU' | 'bn-IN';
+export type LanguageCode = 'zh-CN' | 'en-US' | 'zh-TW' | 'pt-BR' | 'ja-JP' | 'it-IT' | 'fr-FR' | 'ru-RU' | 'bn-IN' | 'nl-NL';
 
 export type Language = {
   code: LanguageCode;
@@ -39,6 +41,7 @@ export const languages: Language[] = [
   { code: 'fr-FR', label: 'Français' },
   { code: 'ru-RU', label: 'Русский' },
   { code: 'bn-IN', label: 'বাংলা' },
+  { code: 'nl-NL', label: 'Nederlands' },
 ];
 
-export { zhCN, enUS, zhTW, ptBR, jaJP, itIT, frFR, ruRU, bnIN };
+export { zhCN, enUS, zhTW, ptBR, jaJP, itIT, frFR, ruRU, bnIN, nlNL };

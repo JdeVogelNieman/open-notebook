@@ -31,7 +31,7 @@ export const ptBR = {
     podcast: "Podcast",
     quickActions: "Ações rápidas",
     quickActionsDesc: "Navegação, busca, perguntar, tema",
-    appName: "Open Notebook",
+    appName: "Nieman AI",
     add: "Adicionar",
     remove: "Remover",
     confirm: "Confirmar",

@@ -81,8 +81,8 @@ ENV TIKTOKEN_CACHE_DIR=/app/tiktoken-cache
 # Setup directories and permissions
 RUN mkdir -p /app/data /mydata
 
-# Ensure wait-for-api script is executable
-RUN chmod +x /app/scripts/wait-for-api.sh
+# Fix Windows line endings and ensure wait-for-api script is executable
+RUN sed -i 's/\r$//' /app/scripts/wait-for-api.sh && chmod +x /app/scripts/wait-for-api.sh
 
 # Copy supervisord configuration
 COPY supervisord.single.conf /etc/supervisor/conf.d/supervisord.conf

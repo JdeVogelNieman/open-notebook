@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "@/components/providers/QueryProvider";
@@ -9,10 +9,10 @@ import { ConnectionGuard } from "@/components/common/ConnectionGuard";
 import { themeScript } from "@/lib/theme-script";
 import { I18nProvider } from "@/components/providers/I18nProvider";
 
-const inter = Inter({ subsets: ["latin"] });
+const poppins = Poppins({ subsets: ["latin"], weight: ["300", "400", "700"] });
 
 export const metadata: Metadata = {
-  title: "Open Notebook",
+  title: "Nieman AI",
   description: "Privacy-focused research and knowledge management",
 };
 
@@ -26,7 +26,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className={inter.className}>
+      <body className={poppins.className}>
         <ErrorBoundary>
           <ThemeProvider>
             <QueryProvider>
