@@ -27,6 +27,8 @@ export const zhTW = {
     russian: "Русский",
     bengali: "বাংলা",
     spanish: "Español",
+    dutch: "荷蘭語",
+    italian: "義大利語",
     source: "來源",
     notebook: "筆記本",
     podcast: "播客",
@@ -131,6 +133,7 @@ export const zhTW = {
       clickToCycle: "點擊循環切換",
     },
     clickToEdit: "點擊編輯",
+    preview: "預覽",
   },
   apiErrors: {
     notebookNotFound: "找不到筆記本",
@@ -216,6 +219,8 @@ export const zhTW = {
     language: "切換語言",
     theme: "主題",
     ask: "提問",
+    developer: "開發者",
+    transcriptions: "轉錄",
   },
   notebooks: {
     title: "筆記本",
@@ -256,6 +261,8 @@ export const zhTW = {
     createSuccess: "筆記本新增成功",
     updateSuccess: "筆記本更新成功",
     deleteSuccess: "筆記本刪除成功",
+    previewDemo: "示範",
+    previewDemoHint: "這是一個示範預覽，實際輸出文件將顯示在此處。",
   },
   sources: {
     title: "來源",
@@ -813,6 +820,8 @@ export const zhTW = {
     createSuccess: "轉換規則建立成功",
     updateSuccess: "轉換規則更新成功",
     deleteSuccess: "轉換規則刪除成功",
+    previewDemo: "示範",
+    previewDemoHint: "這是一個示範預覽，實際輸出文件將顯示在此處。",
     noTransformations: "暫無轉換規則",
     createOne: "建立一個轉換規則以開始",
     selectModel: "選擇模型",

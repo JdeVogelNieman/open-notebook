@@ -55,6 +55,15 @@ vi.mock('@/lib/stores/sidebar-store', () => ({
   })),
 }))
 
+// Mock @/lib/stores/developer-store
+vi.mock('@/lib/stores/developer-store', () => ({
+  useDeveloperStore: vi.fn(() => ({
+    isDeveloperMode: false,
+    toggleDeveloperMode: vi.fn(),
+    setDeveloperMode: vi.fn(),
+  })),
+}))
+
 // Mock @/lib/hooks/use-create-dialogs
 vi.mock('@/lib/hooks/use-create-dialogs', () => ({
   useCreateDialogs: vi.fn(() => ({

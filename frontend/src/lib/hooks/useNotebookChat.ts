@@ -29,6 +29,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [messages, setMessages] = useState<NotebookChatMessage[]>([])
   const [isSending, setIsSending] = useState(false)
+  const [streamingContent, setStreamingContent] = useState<string | null>(null)
   const [tokenCount, setTokenCount] = useState<number>(0)
   const [charCount, setCharCount] = useState<number>(0)
   // Pending model override for when user changes model before a session exists
@@ -172,7 +173,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     return response.context
   }, [notebookId, sources, notes, contextSelections])
 
-  // Send message (synchronous, no streaming)
+  // Send message with token-by-token streaming
   const sendMessage = useCallback(async (message: string, modelOverride?: string) => {
     let sessionId = currentSessionId
 
@@ -185,12 +186,10 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
         const newSession = await chatApi.createSession({
           notebook_id: notebookId,
           title: defaultTitle,
-          // Include pending model override when creating session
           model_override: pendingModelOverride ?? undefined
         })
         sessionId = newSession.id
         setCurrentSessionId(sessionId)
-        // Clear pending model override now that it's applied to the session
         setPendingModelOverride(null)
         queryClient.invalidateQueries({
           queryKey: QUERY_KEYS.notebookChatSessions(notebookId)
@@ -211,28 +210,42 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     }
     setMessages(prev => [...prev, userMessage])
     setIsSending(true)
+    setStreamingContent('')   // show empty streaming bubble immediately
 
     try {
-      // Build context and send message
       const context = await buildContext()
-      const response = await chatApi.sendMessage({
-        session_id: sessionId,
-        message,
-        context,
-        model_override: modelOverride ?? (currentSession?.model_override ?? undefined)
-      })
 
-      // Update messages with API response
-      setMessages(response.messages)
-
-      // Refetch current session to get updated data
-      await refetchCurrentSession()
+      await chatApi.streamMessage(
+        {
+          session_id: sessionId,
+          message,
+          context,
+          model_override: modelOverride ?? (currentSession?.model_override ?? undefined)
+        },
+        // onToken — append each token to the streaming bubble
+        (token) => {
+          setStreamingContent(prev => (prev ?? '') + token)
+        },
+        // onDone — replace optimistic messages with final server state
+        (finalMessages) => {
+          setMessages(finalMessages)
+          setStreamingContent(null)
+          refetchCurrentSession()
+        },
+        // onError
+        (error) => {
+          console.error('Streaming error:', error)
+          toast.error(getApiErrorMessage(error, (key) => t(key), 'apiErrors.failedToSendMessage'))
+          setMessages(prev => prev.filter(msg => !msg.id.startsWith('temp-')))
+          setStreamingContent(null)
+        },
+      )
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } }, message?: string };
       console.error('Error sending message:', error)
       toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToSendMessage'))
-      // Remove optimistic message on error
       setMessages(prev => prev.filter(msg => !msg.id.startsWith('temp-')))
+      setStreamingContent(null)
     } finally {
       setIsSending(false)
     }
@@ -306,6 +319,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     currentSessionId,
     messages,
     isSending,
+    streamingContent,
     loadingSessions,
     tokenCount,
     charCount,

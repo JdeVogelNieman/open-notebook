@@ -27,6 +27,8 @@ export const bnIN = {
     russian: "Русский",
     bengali: "বাংলা",
     spanish: "Español",
+    dutch: "ডাচ",
+    italian: "ইতালীয়",
     source: "উৎস",
     notebook: "নোটবুক",
     podcast: "পডকাস্ট",
@@ -131,6 +133,7 @@ export const bnIN = {
       clickToCycle: "সাইকেল করতে ক্লিক করুন",
     },
     clickToEdit: "সম্পাদনা করতে ক্লিক করুন",
+    preview: "পূর্বরূপ",
   },
   apiErrors: {
     notebookNotFound: "নোটবুক খুঁজে পাওয়া যায়নি",
@@ -216,6 +219,8 @@ export const bnIN = {
     language: "ভাষা টগল",
     theme: "থিম",
     ask: "জিজ্ঞাসা",
+    developer: "ডেভেলপার",
+    transcriptions: "ট্রান্সক্রিপশন",
   },
   notebooks: {
     title: "নোটবুকগুলি",
@@ -256,6 +261,8 @@ export const bnIN = {
     createSuccess: "নোটবুক সফলভাবে তৈরি হয়েছে",
     updateSuccess: "নোটবুক সফলভাবে আপডেট হয়েছে",
     deleteSuccess: "নোটবুক সফলভাবে মুছে ফেলা হয়েছে",
+    previewDemo: "ডেমো",
+    previewDemoHint: "এটি একটি ডেমো পূর্বরূপ। বাস্তব আউটপুট ডকুমেন্ট এখানে প্রদর্শিত হবে।",
   },
   sources: {
     title: "উৎসগুলি",
@@ -814,6 +821,8 @@ export const bnIN = {
     createSuccess: "ট্রান্সফরমেশন সফলভাবে তৈরি হয়েছে",
     updateSuccess: "ট্রান্সফরমেশন সফলভাবে আপডেট হয়েছে",
     deleteSuccess: "ট্রান্সফরমেশন সফলভাবে মুছে ফেলা হয়েছে",
+    previewDemo: "ডেমো",
+    previewDemoHint: "এটি একটি ডেমো পূর্বরূপ। বাস্তব আউটপুট ডকুমেন্ট এখানে প্রদর্শিত হবে।",
     noTransformations: "এখনও কোন ট্রান্সফরমেশন নেই",
     createOne: "শুরু করতে একটি ট্রান্সফরমেশন তৈরি করুন",
     selectModel: "একটি মডেল নির্বাচন করুন",

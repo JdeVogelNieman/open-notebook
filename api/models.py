@@ -262,6 +262,10 @@ class SettingsResponse(BaseModel):
     default_embedding_option: Optional[str] = None
     auto_delete_files: Optional[str] = None
     youtube_preferred_languages: Optional[List[str]] = None
+    rag_enabled: Optional[bool] = False
+    rag_service_url: Optional[str] = "http://host.docker.internal:3001"
+    rag_base_dir: Optional[str] = ""
+    rag_max_results: Optional[int] = 3
 
 
 class SettingsUpdate(BaseModel):
@@ -270,6 +274,10 @@ class SettingsUpdate(BaseModel):
     default_embedding_option: Optional[str] = None
     auto_delete_files: Optional[str] = None
     youtube_preferred_languages: Optional[List[str]] = None
+    rag_enabled: Optional[bool] = None
+    rag_service_url: Optional[str] = None
+    rag_base_dir: Optional[str] = None
+    rag_max_results: Optional[int] = None
 
 
 # Sources API models

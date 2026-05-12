@@ -20,6 +20,10 @@ async def get_settings():
             default_embedding_option=settings.default_embedding_option,
             auto_delete_files=settings.auto_delete_files,
             youtube_preferred_languages=settings.youtube_preferred_languages,
+            rag_enabled=settings.rag_enabled,
+            rag_service_url=settings.rag_service_url,
+            rag_base_dir=settings.rag_base_dir,
+            rag_max_results=settings.rag_max_results,
         )
     except Exception as e:
         logger.error(f"Error fetching settings: {str(e)}")
@@ -67,6 +71,14 @@ async def update_settings(settings_update: SettingsUpdate):
             settings.youtube_preferred_languages = (
                 settings_update.youtube_preferred_languages
             )
+        if settings_update.rag_enabled is not None:
+            settings.rag_enabled = settings_update.rag_enabled
+        if settings_update.rag_service_url is not None:
+            settings.rag_service_url = settings_update.rag_service_url
+        if settings_update.rag_base_dir is not None:
+            settings.rag_base_dir = settings_update.rag_base_dir
+        if settings_update.rag_max_results is not None:
+            settings.rag_max_results = settings_update.rag_max_results
 
         await settings.update()
 
@@ -76,6 +88,10 @@ async def update_settings(settings_update: SettingsUpdate):
             default_embedding_option=settings.default_embedding_option,
             auto_delete_files=settings.auto_delete_files,
             youtube_preferred_languages=settings.youtube_preferred_languages,
+            rag_enabled=settings.rag_enabled,
+            rag_service_url=settings.rag_service_url,
+            rag_base_dir=settings.rag_base_dir,
+            rag_max_results=settings.rag_max_results,
         )
     except HTTPException:
         raise

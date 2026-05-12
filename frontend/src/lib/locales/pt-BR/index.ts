@@ -27,6 +27,8 @@ export const ptBR = {
     russian: "Русский",
     bengali: "বাংলা",
     spanish: "Español",
+    dutch: "Holandês",
+    italian: "Italiano",
     source: "Fonte",
     notebook: "Caderno",
     podcast: "Podcast",
@@ -131,6 +133,7 @@ export const ptBR = {
       clickToCycle: "Clique para alternar",
     },
     clickToEdit: "Clique para editar",
+    preview: "Pré-visualização",
   },
   apiErrors: {
     notebookNotFound: "Caderno não encontrado",
@@ -216,6 +219,8 @@ export const ptBR = {
     language: "Alternar idioma",
     theme: "Tema",
     ask: "Perguntar",
+    developer: "Desenvolvedor",
+    transcriptions: "Transcrições",
   },
   notebooks: {
     title: "Cadernos",
@@ -256,6 +261,8 @@ export const ptBR = {
     createSuccess: "Caderno criado com sucesso",
     updateSuccess: "Caderno atualizado com sucesso",
     deleteSuccess: "Caderno excluído com sucesso",
+    previewDemo: "Demo",
+    previewDemoHint: "Esta é uma pré-visualização de demonstração. Documentos reais aparecerão aqui.",
   },
   sources: {
     title: "Fontes",
@@ -813,6 +820,8 @@ export const ptBR = {
     createSuccess: "Transformação criada com sucesso",
     updateSuccess: "Transformação atualizada com sucesso",
     deleteSuccess: "Transformação excluída com sucesso",
+    previewDemo: "Demo",
+    previewDemoHint: "Esta é uma pré-visualização de demonstração. Documentos reais aparecerão aqui.",
     noTransformations: "Nenhuma transformação ainda",
     createOne: "Crie uma transformação para começar",
     selectModel: "Selecione um modelo",

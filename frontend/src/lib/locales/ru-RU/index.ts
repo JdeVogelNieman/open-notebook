@@ -27,6 +27,8 @@ export const ruRU = {
     russian: "Русский",
     bengali: "বাংলা",
     spanish: "Español",
+    dutch: "Нидерландский",
+    italian: "Итальянский",
     source: "Источник",
     notebook: "Блокнот",
     podcast: "Подкаст",
@@ -131,6 +133,7 @@ export const ruRU = {
       clickToCycle: "Нажмите для переключения",
     },
     clickToEdit: "Нажмите для редактирования",
+    preview: "Предпросмотр",
   },
   apiErrors: {
     notebookNotFound: "Блокнот не найден",
@@ -216,6 +219,8 @@ export const ruRU = {
     language: "Переключить язык",
     theme: "Тема",
     ask: "Запрос",
+    developer: "Разработчик",
+    transcriptions: "Транскрипции",
   },
   notebooks: {
     title: "Блокноты",
@@ -256,6 +261,8 @@ export const ruRU = {
     createSuccess: "Блокнот успешно создан",
     updateSuccess: "Блокнот успешно обновлён",
     deleteSuccess: "Блокнот успешно удалён",
+    previewDemo: "Демо",
+    previewDemoHint: "Это демонстрационный предпросмотр. Здесь будут отображаться реальные выходные документы.",
   },
   sources: {
     title: "Источники",
@@ -813,6 +820,8 @@ export const ruRU = {
     createSuccess: "Трансформация успешно создана",
     updateSuccess: "Трансформация успешно обновлена",
     deleteSuccess: "Трансформация успешно удалена",
+    previewDemo: "Демо",
+    previewDemoHint: "Это демонстрационный предпросмотр. Здесь будут отображаться реальные выходные документы.",
     noTransformations: "Пока нет трансформаций",
     createOne: "Создайте трансформацию для начала",
     selectModel: "Выберите модель",

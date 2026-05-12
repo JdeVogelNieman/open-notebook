@@ -27,6 +27,8 @@ export const esES = {
     russian: "Русский",
     bengali: "বাংলা",
     spanish: "Español",
+    dutch: "Neerlandés",
+    italian: "Italiano",
     source: "Fuente",
     notebook: "Cuaderno",
     podcast: "Podcast",
@@ -131,6 +133,7 @@ export const esES = {
       clickToCycle: "Clic para cambiar",
     },
     clickToEdit: "Clic para editar",
+    preview: "Vista previa",
   },
   apiErrors: {
     notebookNotFound: "Cuaderno no encontrado",
@@ -216,6 +219,8 @@ export const esES = {
     language: "Cambiar idioma",
     theme: "Tema",
     ask: "Preguntar",
+    developer: "Desarrollador",
+    transcriptions: "Transcripciones",
   },
   notebooks: {
     title: "Cuadernos",
@@ -256,6 +261,8 @@ export const esES = {
     createSuccess: "Cuaderno creado exitosamente",
     updateSuccess: "Cuaderno actualizado exitosamente",
     deleteSuccess: "Cuaderno eliminado exitosamente",
+    previewDemo: "Demo",
+    previewDemoHint: "Esta es una vista previa de demostración. Los documentos de salida reales aparecerán aquí.",
   },
   sources: {
     title: "Fuentes",
@@ -814,6 +821,8 @@ export const esES = {
     createSuccess: "Transformación creada exitosamente",
     updateSuccess: "Transformación actualizada exitosamente",
     deleteSuccess: "Transformación eliminada exitosamente",
+    previewDemo: "Demo",
+    previewDemoHint: "Esta es una vista previa de demostración. Los documentos de salida reales aparecerán aquí.",
     noTransformations: "Aún no hay transformaciones",
     createOne: "Crea una transformación para comenzar",
     selectModel: "Seleccionar un modelo",

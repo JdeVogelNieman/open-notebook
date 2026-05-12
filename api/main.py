@@ -28,6 +28,7 @@ from api.routers import (
     notebooks,
     notes,
     podcasts,
+    rag,
     search,
     settings,
     source_chat,
@@ -310,6 +311,7 @@ app.include_router(chat.router, prefix="/api", tags=["chat"])
 app.include_router(source_chat.router, prefix="/api", tags=["source-chat"])
 app.include_router(credentials.router, prefix="/api", tags=["credentials"])
 app.include_router(languages.router, prefix="/api", tags=["languages"])
+app.include_router(rag.router, prefix="/api", tags=["rag"])
 
 
 @app.get("/")

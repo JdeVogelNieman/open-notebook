@@ -1,0 +1,12 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\api",
+    "\\open_notebook",
+    "\\prompts",
+    "\\prompts\\ask",
+    "\\prompts\\chat"
+  ],
+  "SelectedNode": "\\docker-compose.user1.yml",
+  "PreviewInSolutionExplorer": false
+}

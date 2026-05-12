@@ -23,3 +23,14 @@ class ContentSettings(RecordModel):
         ["en", "pt", "es", "de", "nl", "en-GB", "fr", "de", "hi", "ja"],
         description="Preferred languages for YouTube transcripts",
     )
+    rag_enabled: Optional[bool] = Field(False, description="Enable RAG integration")
+    rag_service_url: Optional[str] = Field(
+        "http://host.docker.internal:3001",
+        description="URL of the NiemanLocalRag HTTP service",
+    )
+    rag_base_dir: Optional[str] = Field(
+        "", description="Base directory for RAG file ingestion"
+    )
+    rag_max_results: Optional[int] = Field(
+        3, description="Maximum number of RAG results to add per chat message"
+    )

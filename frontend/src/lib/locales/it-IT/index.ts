@@ -27,6 +27,8 @@ export const itIT = {
     russian: "Русский",
     bengali: "বাংলা",
     spanish: "Español",
+    dutch: "Olandese",
+    italian: "Italiano",
     source: "Fonte",
     notebook: "Quaderno",
     podcast: "Podcast",
@@ -131,6 +133,7 @@ export const itIT = {
       clickToCycle: "Clicca per cambiare",
     },
     clickToEdit: "Clicca per modificare",
+    preview: "Anteprima",
   },
   apiErrors: {
     notebookNotFound: "Quaderno non trovato",
@@ -216,6 +219,8 @@ export const itIT = {
     language: "Cambia lingua",
     theme: "Tema",
     ask: "Chiedi",
+    developer: "Sviluppatore",
+    transcriptions: "Trascrizioni",
   },
   notebooks: {
     title: "Quaderni",
@@ -256,6 +261,8 @@ export const itIT = {
     createSuccess: "Quaderno creato con successo",
     updateSuccess: "Quaderno aggiornato con successo",
     deleteSuccess: "Quaderno eliminato con successo",
+    previewDemo: "Demo",
+    previewDemoHint: "Questa è un'anteprima dimostrativa. I documenti di output reali appariranno qui.",
   },
   sources: {
     title: "Fonti",
@@ -813,6 +820,8 @@ export const itIT = {
     createSuccess: "Trasformazione creata con successo",
     updateSuccess: "Trasformazione aggiornata con successo",
     deleteSuccess: "Trasformazione eliminata con successo",
+    previewDemo: "Demo",
+    previewDemoHint: "Questa è un'anteprima dimostrativa. I documenti di output reali appariranno qui.",
     noTransformations: "Ancora nessuna trasformazione",
     createOne: "Crea una trasformazione per iniziare",
     selectModel: "Seleziona un modello",

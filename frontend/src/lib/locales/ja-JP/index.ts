@@ -27,6 +27,8 @@ export const jaJP = {
     russian: "Русский",
     bengali: "বাংলা",
     spanish: "Español",
+    dutch: "オランダ語",
+    italian: "イタリア語",
     source: "ソース",
     notebook: "ノートブック",
     podcast: "ポッドキャスト",
@@ -131,6 +133,7 @@ export const jaJP = {
       clickToCycle: "クリックで切り替え",
     },
     clickToEdit: "クリックして編集",
+    preview: "プレビュー",
   },
   apiErrors: {
     notebookNotFound: "ノートブックが見つかりません",
@@ -216,6 +219,8 @@ export const jaJP = {
     language: "言語を切り替え",
     theme: "テーマ",
     ask: "質問",
+    developer: "開発者",
+    transcriptions: "トランスクリプション",
   },
   notebooks: {
     title: "ノートブック",
@@ -256,6 +261,8 @@ export const jaJP = {
     createSuccess: "ノートブックを作成しました",
     updateSuccess: "ノートブックを更新しました",
     deleteSuccess: "ノートブックを削除しました",
+    previewDemo: "デモ",
+    previewDemoHint: "これはデモプレビューです。実際の出力ドキュメントがここに表示されます。",
   },
   sources: {
     title: "ソース",
@@ -813,6 +820,8 @@ export const jaJP = {
     createSuccess: "トランスフォーメーションを作成しました",
     updateSuccess: "トランスフォーメーションを更新しました",
     deleteSuccess: "トランスフォーメーションを削除しました",
+    previewDemo: "デモ",
+    previewDemoHint: "これはデモプレビューです。実際の出力ドキュメントがここに表示されます。",
     noTransformations: "トランスフォーメーションがまだありません",
     createOne: "開始するにはトランスフォーメーションを作成してください",
     selectModel: "モデルを選択",

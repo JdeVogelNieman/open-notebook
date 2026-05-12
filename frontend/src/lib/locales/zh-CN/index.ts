@@ -27,6 +27,8 @@ export const zhCN = {
     russian: "Русский",
     bengali: "বাংলা",
     spanish: "Español",
+    dutch: "荷兰语",
+    italian: "意大利语",
     source: "来源",
     notebook: "笔记本",
     podcast: "播客",
@@ -131,6 +133,7 @@ export const zhCN = {
       clickToCycle: "点击循环切换",
     },
     clickToEdit: "点击编辑",
+    preview: "预览",
   },
   apiErrors: {
     notebookNotFound: "找不到笔记本",
@@ -216,6 +219,8 @@ export const zhCN = {
     language: "切换语言",
     theme: "主题",
     ask: "提问",
+    developer: "开发者",
+    transcriptions: "转录",
   },
   notebooks: {
     title: "笔记本",
@@ -256,6 +261,8 @@ export const zhCN = {
     createSuccess: "笔记本创建成功",
     updateSuccess: "笔记本更新成功",
     deleteSuccess: "笔记本删除成功",
+    previewDemo: "演示",
+    previewDemoHint: "这是一个演示预览，实际输出文档将显示在此处。",
   },
   sources: {
     title: "来源",
@@ -813,6 +820,8 @@ export const zhCN = {
     createSuccess: "转换规则创建成功",
     updateSuccess: "转换规则更新成功",
     deleteSuccess: "转换规则删除成功",
+    previewDemo: "演示",
+    previewDemoHint: "这是一个演示预览，实际输出文档将显示在此处。",
     noTransformations: "暂无转换规则",
     createOne: "创建一个转换规则以开始",
     selectModel: "选择模型",

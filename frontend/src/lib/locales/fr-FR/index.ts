@@ -27,6 +27,8 @@ export const frFR = {
     russian: "Русский",
     bengali: "বাংলা",
     spanish: "Español",
+    dutch: "Néerlandais",
+    italian: "Italien",
     source: "Source",
     notebook: "Carnet",
     podcast: "Podcast",
@@ -131,6 +133,7 @@ export const frFR = {
       clickToCycle: "Cliquez pour faire défiler",
     },
     clickToEdit: "Cliquez pour modifier",
+    preview: "Aperçu",
   },
   apiErrors: {
     notebookNotFound: "Carnet introuvable",
@@ -216,6 +219,8 @@ export const frFR = {
     language: "Changer de langue",
     theme: "Thème",
     ask: "Demander",
+    developer: "Développeur",
+    transcriptions: "Transcriptions",
   },
   notebooks: {
     title: "Carnets",
@@ -256,6 +261,8 @@ export const frFR = {
     createSuccess: "Carnet créé avec succès",
     updateSuccess: "Carnet mis à jour avec succès",
     deleteSuccess: "Carnet supprimé avec succès",
+    previewDemo: "Démo",
+    previewDemoHint: "Ceci est un aperçu de démonstration. Les vrais documents de sortie apparaîtront ici.",
   },
   sources: {
     title: "Sources",
@@ -813,6 +820,8 @@ export const frFR = {
     createSuccess: "Transformation créée avec succès",
     updateSuccess: "Transformation mise à jour avec succès",
     deleteSuccess: "Transformation supprimée avec succès",
+    previewDemo: "Démo",
+    previewDemoHint: "Ceci est un aperçu de démonstration. Les vrais documents de sortie apparaîtront ici.",
     noTransformations: "Aucune transformation pour le moment",
     createOne: "Créez une transformation pour commencer",
     selectModel: "Sélectionnez un modèle",

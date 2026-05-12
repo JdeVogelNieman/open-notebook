@@ -27,6 +27,8 @@ export const enUS = {
     russian: "Русский",
     bengali: "বাংলা",
     spanish: "Español",
+    dutch: "Nederlands",
+    italian: "Italiano",
     source: "Source",
     notebook: "Notebook",
     podcast: "Podcast",
@@ -131,6 +133,7 @@ export const enUS = {
       clickToCycle: "Click to cycle",
     },
     clickToEdit: "Click to edit",
+    preview: "Preview",
   },
   apiErrors: {
     notebookNotFound: "Notebook not found",
@@ -216,6 +219,8 @@ export const enUS = {
     language: "Toggle language",
     theme: "Theme",
     ask: "Ask",
+    developer: "Developer",
+    transcriptions: "Transcriptions",
   },
   notebooks: {
     title: "Notebooks",
@@ -256,6 +261,8 @@ export const enUS = {
     createSuccess: "Notebook created successfully",
     updateSuccess: "Notebook updated successfully",
     deleteSuccess: "Notebook deleted successfully",
+    previewDemo: "Demo",
+    previewDemoHint: "This is a demo preview. Real output documents will appear here.",
   },
   sources: {
     title: "Sources",

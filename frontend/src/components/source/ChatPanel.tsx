@@ -35,6 +35,7 @@ interface NotebookContextStats {
 interface ChatPanelProps {
   messages: SourceChatMessage[]
   isStreaming: boolean
+  streamingContent?: string | null
   contextIndicators: SourceChatContextIndicator | null
   onSendMessage: (message: string, modelOverride?: string) => void
   modelOverride?: string
@@ -59,6 +60,7 @@ interface ChatPanelProps {
 export function ChatPanel({
   messages,
   isStreaming,
+  streamingContent = null,
   contextIndicators,
   onSendMessage,
   modelOverride,
@@ -230,8 +232,17 @@ export function ChatPanel({
                     <Bot className="h-4 w-4" />
                   </div>
                 </div>
-                <div className="rounded-lg px-4 py-2 bg-muted">
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                <div className="rounded-lg px-4 py-2 bg-muted max-w-[80%]">
+                  {streamingContent ? (
+                    <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none break-words">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {streamingContent}
+                      </ReactMarkdown>
+                      <span className="inline-block w-1.5 h-4 bg-foreground/70 animate-pulse ml-0.5 align-middle" />
+                    </div>
+                  ) : (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
                 </div>
               </div>
             )}
@@ -299,7 +310,6 @@ export function ChatPanel({
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={`${t('chat.sendPlaceholder')} (${t('chat.pressToSend').replace('{key}', keyHint)})`}
-              disabled={isStreaming}
               className="flex-1 min-h-[40px] max-h-[100px] resize-none py-2 px-3 min-w-0"
               rows={1}
             />

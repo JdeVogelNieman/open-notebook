@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/lib/hooks/use-auth'
 import { useSidebarStore } from '@/lib/stores/sidebar-store'
+import { useDeveloperStore } from '@/lib/stores/developer-store'
 import { useCreateDialogs } from '@/lib/hooks/use-create-dialogs'
 import {
   Tooltip,
@@ -41,9 +42,23 @@ import {
   Plus,
   Wrench,
   Command,
+  Code2,
+  Captions,
 } from 'lucide-react'
 
-const getNavigation = (t: TFunction) => [
+type NavItem = {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  comingSoon?: boolean
+}
+
+type NavSection = {
+  title: string
+  items: NavItem[]
+}
+
+const getNavigation = (t: TFunction): NavSection[] => [
   {
     title: t('navigation.collect'),
     items: [
@@ -55,6 +70,7 @@ const getNavigation = (t: TFunction) => [
     items: [
       { name: t('navigation.notebooks'), href: '/notebooks', icon: Book },
       { name: t('navigation.askAndSearch'), href: '/search', icon: Search },
+      { name: t('navigation.transcriptions'), href: '/transcriptions', icon: Captions, comingSoon: true },
     ],
   },
   {
@@ -72,7 +88,7 @@ const getNavigation = (t: TFunction) => [
       { name: t('navigation.advanced'), href: '/advanced', icon: Wrench },
     ],
   },
-] as const
+]
 
 type CreateTarget = 'source' | 'notebook' | 'podcast'
 
@@ -82,6 +98,7 @@ export function AppSidebar() {
   const pathname = usePathname()
   const { logout } = useAuth()
   const { isCollapsed, toggleCollapse } = useSidebarStore()
+  const { isDeveloperMode, toggleDeveloperMode } = useDeveloperStore()
   const { openSourceDialog, openNotebookDialog, openPodcastDialog } = useCreateDialogs()
 
   const [createMenuOpen, setCreateMenuOpen] = useState(false)
@@ -91,6 +108,14 @@ export function AppSidebar() {
   useEffect(() => {
     setIsMac(navigator.platform.toLowerCase().includes('mac'))
   }, [])
+
+  // Filter navigation: hide 'manage' section when not in developer mode
+  const visibleNavigation = navigation.filter((section) => {
+    if (section.title === t('navigation.manage') && !isDeveloperMode) {
+      return false
+    }
+    return true
+  })
 
   const handleCreateSelection = (target: CreateTarget) => {
     setCreateMenuOpen(false)
@@ -139,7 +164,7 @@ export function AppSidebar() {
           ) : (
             <>
               <div className="flex items-center gap-2">
-                <Image src="/Beeldmerk-NRI-RGB.svg" alt={t.common.appName} width={32} height={32} />
+                <Image src="/Beeldmerk-NRI-RGB.svg" alt={t('common.appName')} width={32} height={32} />
                 <span className="text-base font-medium text-sidebar-foreground">
                   {t('common.appName')}
                 </span>
@@ -240,7 +265,7 @@ export function AppSidebar() {
             </DropdownMenu>
           </div>
 
-          {navigation.map((section, index) => (
+          {visibleNavigation.map((section, index) => (
             <div key={section.title}>
               {index > 0 && (
                 <Separator className="my-3" />
@@ -254,6 +279,44 @@ export function AppSidebar() {
 
                 {section.items.map((item) => {
                   const isActive = pathname?.startsWith(item.href) || false
+
+                  if (item.comingSoon) {
+                    // Placeholder item – not clickable, shows "binnenkort" badge
+                    const placeholderBtn = (
+                      <Button
+                        variant="ghost"
+                        disabled
+                        className={cn(
+                          'w-full gap-3 text-sidebar-foreground/40 sidebar-menu-item cursor-default',
+                          isCollapsed ? 'justify-center px-2' : 'justify-start'
+                        )}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        {!isCollapsed && (
+                          <span className="flex items-center gap-2 flex-1">
+                            {item.name}
+                            <span className="ml-auto text-[9px] font-semibold uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                              binnenkort
+                            </span>
+                          </span>
+                        )}
+                      </Button>
+                    )
+
+                    if (isCollapsed) {
+                      return (
+                        <Tooltip key={item.name}>
+                          <TooltipTrigger asChild>
+                            <span>{placeholderBtn}</span>
+                          </TooltipTrigger>
+                          <TooltipContent side="right">{item.name} (binnenkort)</TooltipContent>
+                        </Tooltip>
+                      )
+                    }
+
+                    return <div key={item.name}>{placeholderBtn}</div>
+                  }
+
                   const button = (
                     <Button
                       variant={isActive ? 'secondary' : 'ghost'}
@@ -340,11 +403,41 @@ export function AppSidebar() {
                   </TooltipTrigger>
                   <TooltipContent side="right">{t('common.language')}</TooltipContent>
                 </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={isDeveloperMode ? 'secondary' : 'ghost'}
+                      size="icon"
+                      className={cn(
+                        'h-9 w-full sidebar-menu-item',
+                        isDeveloperMode && 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30'
+                      )}
+                      onClick={toggleDeveloperMode}
+                      aria-label={t('navigation.developer')}
+                    >
+                      <Code2 className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{t('navigation.developer')}</TooltipContent>
+                </Tooltip>
               </>
             ) : (
               <>
                 <ThemeToggle />
                 <LanguageToggle />
+                <Button
+                  variant={isDeveloperMode ? 'secondary' : 'outline'}
+                  size="default"
+                  className={cn(
+                    'w-full justify-start gap-2 sidebar-menu-item',
+                    isDeveloperMode && 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30 border-amber-500/30'
+                  )}
+                  onClick={toggleDeveloperMode}
+                  aria-label={t('navigation.developer')}
+                >
+                  <Code2 className="h-4 w-4" />
+                  {t('navigation.developer')}
+                </Button>
               </>
             )}
           </div>

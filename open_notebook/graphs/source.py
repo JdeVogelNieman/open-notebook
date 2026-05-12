@@ -9,6 +9,7 @@ from langgraph.types import Send
 from loguru import logger
 from typing_extensions import Annotated, TypedDict
 
+from open_notebook.ai.key_provider import provision_provider_keys
 from open_notebook.ai.models import Model, ModelManager
 from open_notebook.domain.content_settings import ContentSettings
 from open_notebook.domain.notebook import Asset, Source
@@ -71,6 +72,8 @@ async def content_process(state: SourceState) -> dict:
                 logger.debug(
                     f"Using speech-to-text model: {stt_model.provider}/{stt_model.name}"
                 )
+                # Provision provider keys (e.g. base_url) so content-core can create the model
+                await provision_provider_keys(stt_model.provider)
     except Exception as e:
         logger.warning(f"Failed to retrieve speech-to-text model configuration: {e}")
         # Continue without custom audio model (content-core will use its default)

@@ -84,7 +84,10 @@ class ModelTestResponse(BaseModel):
 
 
 # Provider priority for auto-assignment (higher priority first)
+# Local providers (ollama, openai_compatible) are preferred for privacy-first setups
 PROVIDER_PRIORITY = [
+    "ollama",
+    "openai_compatible",
     "openai",
     "anthropic",
     "google",
@@ -93,9 +96,7 @@ PROVIDER_PRIORITY = [
     "deepseek",
     "xai",
     "openrouter",
-    "ollama",
     "azure",
-    "openai_compatible",
     "dashscope",
     "minimax",
 ]

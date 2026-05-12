@@ -88,6 +88,18 @@ export function LanguageToggle({ iconOnly = false }: LanguageToggleProps) {
         >
           <span>{t('common.spanish')}</span>
         </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => setLanguage('nl-NL')}
+          className={currentLang === 'nl-NL' || currentLang.startsWith('nl') ? 'bg-accent' : ''}
+        >
+          <span>{t('common.dutch')}</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => setLanguage('it-IT')}
+          className={currentLang === 'it-IT' || currentLang.startsWith('it') ? 'bg-accent' : ''}
+        >
+          <span>{t('common.italian')}</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

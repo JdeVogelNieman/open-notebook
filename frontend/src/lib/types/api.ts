@@ -58,6 +58,10 @@ export interface SettingsResponse {
   default_embedding_option?: string
   auto_delete_files?: string
   youtube_preferred_languages?: string[]
+  rag_enabled?: boolean
+  rag_service_url?: string
+  rag_base_dir?: string
+  rag_max_results?: number
 }
 
 export interface CreateNotebookRequest {

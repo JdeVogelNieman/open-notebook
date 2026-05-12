@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
 import { NotebookHeader } from '../components/NotebookHeader'
 import { SourcesColumn } from '../components/SourcesColumn'
-import { NotesColumn } from '../components/NotesColumn'
 import { ChatColumn } from '../components/ChatColumn'
+import { PreviewColumn } from '../components/PreviewColumn'
 import { useNotebook } from '@/lib/hooks/use-notebooks'
 import { useNotebookSources } from '@/lib/hooks/use-sources'
 import { useNotes } from '@/lib/hooks/use-notes'
@@ -16,7 +16,7 @@ import { useIsDesktop } from '@/lib/hooks/use-media-query'
 import { useTranslation } from '@/lib/hooks/use-translation'
 import { cn } from '@/lib/utils'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { FileText, StickyNote, MessageSquare } from 'lucide-react'
+import { FileText, MessageSquare, FileOutput } from 'lucide-react'
 
 export type ContextMode = 'off' | 'insights' | 'full'
 
@@ -41,16 +41,16 @@ export default function NotebookPage() {
     isFetchingNextPage,
     fetchNextPage,
   } = useNotebookSources(notebookId)
-  const { data: notes, isLoading: notesLoading } = useNotes(notebookId)
+  const { data: notes } = useNotes(notebookId)
 
   // Get collapse states for dynamic layout
-  const { sourcesCollapsed, notesCollapsed } = useNotebookColumnsStore()
+  const { sourcesCollapsed, previewCollapsed } = useNotebookColumnsStore()
 
   // Detect desktop to avoid double-mounting ChatColumn
   const isDesktop = useIsDesktop()
 
-  // Mobile tab state (Sources, Notes, or Chat)
-  const [mobileActiveTab, setMobileActiveTab] = useState<'sources' | 'notes' | 'chat'>('chat')
+  // Mobile tab state (Sources, Chat, or Preview)
+  const [mobileActiveTab, setMobileActiveTab] = useState<'sources' | 'chat' | 'preview'>('chat')
 
   // Context selection state
   const [contextSelections, setContextSelections] = useState<ContextSelections>({
@@ -138,19 +138,19 @@ export default function NotebookPage() {
           {!isDesktop && (
             <>
               <div className="lg:hidden mb-4">
-                <Tabs value={mobileActiveTab} onValueChange={(value) => setMobileActiveTab(value as 'sources' | 'notes' | 'chat')}>
+                <Tabs value={mobileActiveTab} onValueChange={(value) => setMobileActiveTab(value as 'sources' | 'chat' | 'preview')}>
                   <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="sources" className="gap-2">
                       <FileText className="h-4 w-4" />
                       {t('navigation.sources')}
                     </TabsTrigger>
-                    <TabsTrigger value="notes" className="gap-2">
-                      <StickyNote className="h-4 w-4" />
-                      {t('common.notes')}
-                    </TabsTrigger>
                     <TabsTrigger value="chat" className="gap-2">
                       <MessageSquare className="h-4 w-4" />
                       {t('common.chat')}
+                    </TabsTrigger>
+                    <TabsTrigger value="preview" className="gap-2">
+                      <FileOutput className="h-4 w-4" />
+                      {t('common.preview')}
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -172,21 +172,18 @@ export default function NotebookPage() {
                     fetchNextPage={fetchNextPage}
                   />
                 )}
-                {mobileActiveTab === 'notes' && (
-                  <NotesColumn
-                    notes={notes}
-                    isLoading={notesLoading}
-                    notebookId={notebookId}
-                    contextSelections={contextSelections.notes}
-                    onContextModeChange={(noteId, mode) => handleContextModeChange(noteId, mode, 'note')}
-                  />
-                )}
                 {mobileActiveTab === 'chat' && (
                   <ChatColumn
                     notebookId={notebookId}
                     contextSelections={contextSelections}
                     sources={sources}
                     sourcesLoading={sourcesLoading}
+                  />
+                )}
+                {mobileActiveTab === 'preview' && (
+                  <PreviewColumn
+                    notebookId={notebookId}
+                    notebookName={notebook?.name}
                   />
                 )}
               </div>
@@ -201,7 +198,7 @@ export default function NotebookPage() {
             {/* Sources Column */}
             <div className={cn(
               'transition-all duration-150',
-              sourcesCollapsed ? 'w-12 flex-shrink-0' : 'flex-none basis-1/3'
+              sourcesCollapsed ? 'w-12 flex-shrink-0' : 'flex-none basis-1/4'
             )}>
               <SourcesColumn
                 sources={sources}
@@ -217,27 +214,24 @@ export default function NotebookPage() {
               />
             </div>
 
-            {/* Notes Column */}
-            <div className={cn(
-              'transition-all duration-150',
-              notesCollapsed ? 'w-12 flex-shrink-0' : 'flex-none basis-1/3'
-            )}>
-              <NotesColumn
-                notes={notes}
-                isLoading={notesLoading}
-                notebookId={notebookId}
-                contextSelections={contextSelections.notes}
-                onContextModeChange={(noteId, mode) => handleContextModeChange(noteId, mode, 'note')}
-              />
-            </div>
-
-            {/* Chat Column - always expanded, takes remaining space */}
-            <div className="transition-all duration-150 flex-1 min-w-0 lg:pr-6 lg:-mr-6">
+            {/* Chat Column - middle, takes remaining space */}
+            <div className="transition-all duration-150 flex-1 min-w-0">
               <ChatColumn
                 notebookId={notebookId}
                 contextSelections={contextSelections}
                 sources={sources}
                 sourcesLoading={sourcesLoading}
+              />
+            </div>
+
+            {/* Preview Column */}
+            <div className={cn(
+              'transition-all duration-150',
+              previewCollapsed ? 'w-12 flex-shrink-0' : 'flex-none basis-1/3 lg:pr-6 lg:-mr-6'
+            )}>
+              <PreviewColumn
+                notebookId={notebookId}
+                notebookName={notebook?.name}
               />
             </div>
           </div>

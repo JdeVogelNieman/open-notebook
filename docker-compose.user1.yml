@@ -50,13 +50,20 @@ services:
       # Ollama connection (shared service)
       - OLLAMA_BASE_URL=http://ollama:11434
 
-      # Network access - set to your LAN IP so colleagues' browsers can reach the API
-      - API_URL=http://10.242.8.5:5055
-
       # Access control - set a password so only authorised users can log in
       - OPEN_NOTEBOOK_PASSWORD=eRxIXQmoud9TJc1YgZkf2
+
+      # RAG file mount: maps the Windows RAG base folder into the container so
+      # actual source files can be ingested (not just chunk text).
+      # RAG_FILES_MOUNT must match the container path in the volume below.
+      # RAG_BASE_DIR must match the Windows path that the RAG server uses.
+      - RAG_FILES_MOUNT=/rag-files
+      - RAG_BASE_DIR=C:\Users\j.devogel\Downloads\base
     volumes:
       - ./notebook_data_user1:/app/data
+      # Mount the RAG base directory so the API can read and ingest the actual files.
+      # Update the host path if your RAG base directory is different.
+      - C:\Users\j.devogel\Downloads\base:/rag-files:ro
     depends_on:
       - surrealdb_user1
     networks:

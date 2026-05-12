@@ -38,6 +38,124 @@ from open_notebook.exceptions import InvalidInputError
 router = APIRouter()
 
 
+async def create_source_from_rag_result(
+    file_path: str, chunks: list, notebook_id: str
+) -> Optional[tuple[str, str]]:
+    """Create a Source from a RAG result and link it to the notebook.
+
+    Returns (title, source_id) on success.
+    For duplicates already in the notebook, returns (title, existing_source_id).
+    Returns None only on unrecoverable errors.
+
+    Tries to ingest the actual file (via the volume-mounted RAG directory) so the
+    full document is processed through content-core (proper text extraction, embeddings).
+    Falls back to creating a text-only Source from the RAG chunk content when the file
+    is not accessible (e.g., mount not configured).
+    """
+    import ntpath
+    import shutil
+
+    try:
+        from open_notebook.domain.notebook import Notebook
+
+        # --- derive a clean title from the Windows path ---
+        basename = ntpath.basename(file_path)
+        title = basename.rsplit(".", 1)[0] if "." in basename else basename or file_path
+
+        # --- deduplication: if already in notebook, return existing source_id ---
+        notebook = await Notebook.get(notebook_id)
+        if not notebook:
+            logger.warning(f"RAG: notebook {notebook_id} not found")
+            return None
+
+        existing_sources = await notebook.get_sources()
+        for existing in existing_sources:
+            existing_title = getattr(existing, "title", "") or ""
+            if title.lower() in existing_title.lower():
+                logger.debug(f"RAG: source '{title}' already in notebook ({existing.id})")
+                return (existing_title, str(existing.id))
+
+        # --- try to translate Windows path → mounted container path ---
+        rag_base_dir = os.environ.get("RAG_BASE_DIR", "")   # e.g. C:\Users\...\base
+        rag_mount = os.environ.get("RAG_FILES_MOUNT", "")   # e.g. /rag-files
+        container_file_path: Optional[str] = None
+
+        if rag_base_dir and rag_mount:
+            from pathlib import PurePosixPath, PureWindowsPath
+            win_base = PureWindowsPath(rag_base_dir)
+            win_file = PureWindowsPath(file_path)
+            try:
+                rel = win_file.relative_to(win_base)
+                # PureWindowsPath keeps backslashes; convert to forward slashes
+                container_file_path = str(PurePosixPath(rag_mount) / PurePosixPath(*rel.parts))
+            except ValueError:
+                logger.warning(f"RAG: file '{file_path}' is not under base '{rag_base_dir}' — falling back to text")
+
+        if container_file_path and os.path.isfile(container_file_path):
+            # ── FILE-BASED INGESTION ───────────────────────────────────────────
+            # Copy the source file into the uploads directory so the processing
+            # pipeline can pick it up (and the path stays within UPLOADS_FOLDER).
+            import commands.source_commands  # ensure commands registered  # noqa: F401
+
+            dest = generate_unique_filename(basename, UPLOADS_FOLDER)
+            shutil.copy2(container_file_path, dest)
+            logger.info(f"RAG: copied '{basename}' → {dest}")
+
+            # Create the source record with the asset
+            source = Source(title=title, asset=Asset(file_path=dest))
+            await source.save()
+            await source.add_to_notebook(notebook_id)
+
+            # Submit async processing (content-core extraction + embeddings)
+            command_input = SourceProcessingInput(
+                source_id=str(source.id),
+                content_state={"file_path": dest, "delete_source": False},
+                notebook_ids=[notebook_id],
+                transformations=[],
+                embed=True,
+            )
+            command_id = await CommandService.submit_command_job(
+                "open_notebook",
+                "process_source",
+                command_input.model_dump(),
+            )
+            from open_notebook.database.repository import ensure_record_id as _eri
+            source.command = _eri(command_id)
+            await source.save()
+
+            logger.info(
+                f"RAG: queued file ingestion for '{title}' ({source.id}), command {command_id}"
+            )
+            return (title, str(source.id))
+        else:
+            if container_file_path:
+                logger.warning(
+                    f"RAG: mounted file not found at '{container_file_path}' — falling back to text"
+                )
+            # ── TEXT FALLBACK ──────────────────────────────────────────────────
+            # Build full text from all returned chunks (sorted by position).
+            content = "\n\n---\n\n".join(
+                c.text for c in sorted(chunks, key=lambda x: x.chunk_index) if c.text
+            )
+            if not content.strip():
+                logger.warning(f"RAG: no text content for {file_path}")
+                return None
+
+            source = Source(title=title, full_text=content)
+            await source.save()
+            await source.add_to_notebook(notebook_id)
+
+            logger.info(
+                f"RAG: added text source '{title}' ({source.id}) to notebook {notebook_id} "
+                f"({len(chunks)} chunks)"
+            )
+            return (title, str(source.id))
+
+    except Exception as e:
+        logger.error(f"RAG: failed to create source from {file_path}: {e}")
+        return None
+
+
 def generate_unique_filename(original_filename: str, upload_folder: str) -> str:
     """Generate unique filename like Streamlit app (append counter if file exists)."""
     file_path = Path(upload_folder)

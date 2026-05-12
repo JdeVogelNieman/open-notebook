@@ -1,12 +1,17 @@
 import asyncio
+import json
+import re
 import traceback
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from open_notebook.ai.provision import provision_langchain_model
 from open_notebook.database.repository import ensure_record_id, repo_query
 from open_notebook.domain.notebook import ChatSession, Note, Notebook, Source
 from open_notebook.exceptions import (
@@ -75,6 +80,7 @@ class ExecuteChatRequest(BaseModel):
 class ExecuteChatResponse(BaseModel):
     session_id: str = Field(..., description="Session ID")
     messages: List[ChatMessage] = Field(..., description="Updated message list")
+    added_sources: List[str] = Field(default_factory=list, description="Source titles added by RAG")
 
 
 class BuildContextRequest(BaseModel):
@@ -368,6 +374,16 @@ async def execute_chat(request: ExecuteChatRequest):
         user_message = HumanMessage(content=request.message)
         state_values["messages"].append(user_message)
 
+        # ── Resolve notebook_id for tool injection ───────────────────────────────
+        # notebook_id is a graph relationship, not a direct attribute of ChatSession.
+        # Pass it into the LangGraph configurable so the search_documents tool can use it.
+        nb_query = await repo_query(
+            "SELECT out FROM refers_to WHERE in = $session_id",
+            {"session_id": ensure_record_id(full_session_id)},
+        )
+        notebook_id = nb_query[0]["out"] if nb_query else None
+        # ── end notebook_id resolution ─────────────────────────────────────────
+
         # Execute chat graph
         result = chat_graph.invoke(
             input=state_values,  # type: ignore[arg-type]
@@ -375,12 +391,25 @@ async def execute_chat(request: ExecuteChatRequest):
                 configurable={
                     "thread_id": full_session_id,
                     "model_id": model_override,
+                    "notebook_id": notebook_id,
                 }
             ),
         )
 
         # Update session timestamp
         await session.save()
+
+        # Collect titles of any sources added via the search_documents tool
+        added_sources: List[str] = []
+        from langchain_core.messages import ToolMessage
+        for msg in result.get("messages", []):
+            if isinstance(msg, ToolMessage) and msg.name == "search_documents":
+                # Extract source titles from the tool output header line
+                for line in (msg.content or "").splitlines():
+                    if line.startswith("## "):
+                        title = line[3:].split(" [")[0].strip()
+                        if title:
+                            added_sources.append(title)
 
         # Convert messages to response format
         messages: list[ChatMessage] = []
@@ -394,7 +423,7 @@ async def execute_chat(request: ExecuteChatRequest):
                 )
             )
 
-        return ExecuteChatResponse(session_id=request.session_id, messages=messages)
+        return ExecuteChatResponse(session_id=request.session_id, messages=messages, added_sources=added_sources)
     except NotFoundError:
         raise HTTPException(status_code=404, detail="Session not found")
     except Exception as e:
@@ -514,3 +543,197 @@ async def build_context(request: BuildContextRequest):
     except Exception as e:
         logger.error(f"Error building context: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error building context: {str(e)}")
+
+
+# ── Thinking-tag filter helpers ──────────────────────────────────────────────
+
+class _ThinkFilter:
+    """Stateful filter that strips <think>...</think> blocks from a token stream."""
+
+    def __init__(self) -> None:
+        self._buf = ""          # partial tag accumulation buffer
+        self._in_think = False  # are we inside a <think> block?
+
+    def feed(self, text: str) -> str:
+        """Feed *text* and return the portion that should be sent to the client."""
+        out_parts: list[str] = []
+        for ch in text:
+            if self._in_think:
+                self._buf += ch
+                if self._buf.endswith("</think>"):
+                    self._in_think = False
+                    self._buf = ""
+            else:
+                self._buf += ch
+                # Check for opening tag
+                if "<think>" in self._buf:
+                    pre, _, rest = self._buf.partition("<think>")
+                    out_parts.append(pre)
+                    self._in_think = True
+                    self._buf = rest  # rest is content inside <think>
+                elif not "<think>".startswith(self._buf.lstrip()):
+                    # No partial match for a tag – safe to flush
+                    out_parts.append(self._buf)
+                    self._buf = ""
+        return "".join(out_parts)
+
+    def flush(self) -> str:
+        """Flush any remaining buffer content (call after the stream ends)."""
+        if self._in_think:
+            self._buf = ""
+            self._in_think = False
+            return ""
+        result = self._buf
+        self._buf = ""
+        return result
+
+
+async def _stream_chat_tokens(
+    request: ExecuteChatRequest,
+) -> AsyncGenerator[str, None]:
+    """Core generator that streams chat tokens as SSE events."""
+    from ai_prompter import Prompter
+
+    from open_notebook.utils import clean_thinking_content
+
+    # ── 1. Validate session ──────────────────────────────────────────────────
+    full_session_id = (
+        request.session_id
+        if request.session_id.startswith("chat_session:")
+        else f"chat_session:{request.session_id}"
+    )
+    try:
+        session = await ChatSession.get(full_session_id)
+    except Exception:
+        session = None
+    if not session:
+        yield f"data: {json.dumps({'type': 'error', 'error': 'Session not found'})}\n\n"
+        return
+
+    model_override = (
+        request.model_override
+        if request.model_override is not None
+        else getattr(session, "model_override", None)
+    )
+
+    # ── 2. Load existing LangGraph message history ───────────────────────────
+    config = RunnableConfig(configurable={"thread_id": full_session_id})
+    try:
+        current_state = await asyncio.to_thread(chat_graph.get_state, config)
+    except Exception:
+        current_state = None
+
+    existing_messages: list = []
+    context_obj = None
+    if current_state and current_state.values:
+        existing_messages = list(current_state.values.get("messages", []))
+        context_obj = current_state.values.get("context")
+
+    human_message = HumanMessage(content=request.message)
+    all_messages = existing_messages + [human_message]
+
+    # ── 3. Provision model ───────────────────────────────────────────────────
+    try:
+        model = await provision_langchain_model(
+            str(all_messages), model_override, "chat", max_tokens=8192
+        )
+    except Exception as e:
+        yield f"data: {json.dumps({'type': 'error', 'error': f'Model unavailable: {e}'})}\n\n"
+        return
+
+    # ── 4. Build prompt ──────────────────────────────────────────────────────
+    state_for_prompt = {
+        "messages": all_messages,
+        "context": request.context or context_obj,
+        "model_override": model_override,
+    }
+    try:
+        system_prompt = Prompter(prompt_template="chat/system").render(data=state_for_prompt)  # type: ignore[arg-type]
+    except Exception:
+        system_prompt = "You are a helpful assistant."
+
+    payload = [SystemMessage(content=system_prompt)] + all_messages
+
+    # ── 5. Stream model response ─────────────────────────────────────────────
+    full_content = ""
+    think_filter = _ThinkFilter()
+
+    try:
+        async for chunk in model.astream(payload):
+            raw: str = ""
+            c = chunk.content
+            if isinstance(c, str):
+                raw = c
+            elif isinstance(c, list):
+                raw = "".join(
+                    item.get("text", "") for item in c if isinstance(item, dict)
+                )
+            if not raw:
+                continue
+            full_content += raw
+            visible = think_filter.feed(raw)
+            if visible:
+                yield f"data: {json.dumps({'type': 'token', 'content': visible})}\n\n"
+    except Exception as e:
+        yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+        return
+
+    # Flush any buffered tail content
+    tail = think_filter.flush()
+    if tail:
+        yield f"data: {json.dumps({'type': 'token', 'content': tail})}\n\n"
+
+    # Clean full content (removes any thinking tags that leaked through)
+    full_content = clean_thinking_content(full_content)
+
+    # ── 6. Persist to LangGraph state ────────────────────────────────────────
+    ai_message = AIMessage(content=full_content)
+    try:
+        await asyncio.to_thread(
+            chat_graph.update_state,
+            config,
+            {"messages": [human_message, ai_message]},
+        )
+    except Exception as e:
+        logger.warning(f"Failed to persist chat state after streaming: {e}")
+
+    await session.save()
+
+    # ── 7. Return final message list ─────────────────────────────────────────
+    try:
+        final_state = await asyncio.to_thread(chat_graph.get_state, config)
+        messages_out: list[dict] = []
+        if final_state and final_state.values:
+            for i, msg in enumerate(final_state.values.get("messages", [])):
+                content = msg.content if hasattr(msg, "content") else str(msg)
+                if isinstance(content, list):
+                    content = "".join(
+                        item.get("text", "") for item in content if isinstance(item, dict)
+                    )
+                messages_out.append(
+                    {
+                        "id": getattr(msg, "id", f"msg_{i}"),
+                        "type": msg.type if hasattr(msg, "type") else "unknown",
+                        "content": content,
+                        "timestamp": None,
+                    }
+                )
+    except Exception as e:
+        logger.warning(f"Error fetching final state: {e}")
+        messages_out = []
+
+    yield f"data: {json.dumps({'type': 'done', 'messages': messages_out, 'added_sources': []})}\n\n"
+
+
+@router.post("/chat/stream")
+async def stream_chat(request: ExecuteChatRequest):
+    """Stream a chat response token-by-token via Server-Sent Events."""
+    return StreamingResponse(
+        _stream_chat_tokens(request),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
