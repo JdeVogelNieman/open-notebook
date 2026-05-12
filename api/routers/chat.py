@@ -662,6 +662,17 @@ async def _stream_chat_tokens(
         yield f"data: {json.dumps({'type': 'error', 'error': f'Model unavailable: {e}'})}\n\n"
         return
 
+    # Enable structured reasoning for Ollama thinking models so that
+    # thinking content arrives in additional_kwargs["reasoning_content"]
+    # instead of being mixed into the main content as <think> tags.
+    try:
+        from langchain_ollama import ChatOllama
+
+        if isinstance(model, ChatOllama):
+            model.reasoning = True
+    except ImportError:
+        pass
+
     # ── 4. Build prompt ──────────────────────────────────────────────────────
     state_for_prompt = {
         "messages": all_messages,
@@ -689,9 +700,20 @@ async def _stream_chat_tokens(
                 raw = "".join(
                     item.get("text", "") for item in c if isinstance(item, dict)
                 )
+
+            # Check for structured reasoning_content (Ollama with reasoning=True)
+            reasoning_content = ""
+            if hasattr(chunk, "additional_kwargs") and chunk.additional_kwargs:
+                reasoning_content = chunk.additional_kwargs.get(
+                    "reasoning_content", ""
+                )
+            if reasoning_content:
+                yield f"data: {json.dumps({'type': 'thinking', 'content': reasoning_content})}\n\n"
+
             if not raw:
                 continue
             full_content += raw
+            # Also handle <think> tags in content (fallback for reasoning=None)
             result = think_filter.feed(raw)
             if result.thinking:
                 yield f"data: {json.dumps({'type': 'thinking', 'content': result.thinking})}\n\n"
