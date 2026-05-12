@@ -36,6 +36,7 @@ interface ChatPanelProps {
   messages: SourceChatMessage[]
   isStreaming: boolean
   streamingContent?: string | null
+  streamingThinking?: string | null
   contextIndicators: SourceChatContextIndicator | null
   onSendMessage: (message: string, modelOverride?: string) => void
   modelOverride?: string
@@ -61,6 +62,7 @@ export function ChatPanel({
   messages,
   isStreaming,
   streamingContent = null,
+  streamingThinking = null,
   contextIndicators,
   onSendMessage,
   modelOverride,
@@ -233,6 +235,21 @@ export function ChatPanel({
                   </div>
                 </div>
                 <div className="rounded-lg px-4 py-2 bg-muted max-w-[80%]">
+                  {streamingThinking && (
+                    <details open className="mb-2">
+                      <summary className="text-xs text-muted-foreground cursor-pointer select-none font-medium">
+                        {t('chat.thinking') ?? 'Thinking…'}
+                      </summary>
+                      <div className="mt-1 pl-2 border-l-2 border-muted-foreground/20 text-sm text-muted-foreground italic prose prose-sm prose-neutral dark:prose-invert max-w-none break-words">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {streamingThinking}
+                        </ReactMarkdown>
+                        {!streamingContent && (
+                          <span className="inline-block w-1.5 h-4 bg-muted-foreground/50 animate-pulse ml-0.5 align-middle" />
+                        )}
+                      </div>
+                    </details>
+                  )}
                   {streamingContent ? (
                     <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none break-words">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -240,9 +257,9 @@ export function ChatPanel({
                       </ReactMarkdown>
                       <span className="inline-block w-1.5 h-4 bg-foreground/70 animate-pulse ml-0.5 align-middle" />
                     </div>
-                  ) : (
+                  ) : !streamingThinking ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
-                  )}
+                  ) : null}
                 </div>
               </div>
             )}

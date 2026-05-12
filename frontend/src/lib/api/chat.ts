@@ -84,6 +84,7 @@ export const chatApi = {
     onDone: (messages: NotebookChatMessage[], addedSources: string[]) => void,
     onError: (error: string) => void,
     signal?: AbortSignal,
+    onThinking?: (token: string) => void,
   ): Promise<void> => {
     const apiUrl = await getApiUrl()
     const token = getAuthToken()
@@ -125,6 +126,8 @@ export const chatApi = {
             const event = JSON.parse(jsonStr)
             if (event.type === 'token' && event.content) {
               onToken(event.content)
+            } else if (event.type === 'thinking' && event.content && onThinking) {
+              onThinking(event.content)
             } else if (event.type === 'done') {
               onDone(event.messages ?? [], event.added_sources ?? [])
             } else if (event.type === 'error') {

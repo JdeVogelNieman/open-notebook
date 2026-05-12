@@ -444,6 +444,7 @@ export const nlNL = {
     sessionCreated: "Chatsessie aangemaakt",
     sessionUpdated: "Sessie bijgewerkt",
     sessionDeleted: "Sessie verwijderd",
+    thinking: "Nadenken…",
   },
   searchPage: {
     askAndSearch: "Vragen en zoeken",

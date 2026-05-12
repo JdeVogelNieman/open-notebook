@@ -444,6 +444,7 @@ export const frFR = {
     sessionCreated: "Session de chat créée",
     sessionUpdated: "Session mise à jour",
     sessionDeleted: "Session supprimée",
+    thinking: "Réflexion…",
   },
   searchPage: {
     askAndSearch: "Poser une question et Rechercher",

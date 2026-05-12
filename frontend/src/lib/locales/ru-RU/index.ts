@@ -444,6 +444,7 @@ export const ruRU = {
     sessionCreated: "Сессия чата создана",
     sessionUpdated: "Сессия обновлена",
     sessionDeleted: "Сессия удалена",
+    thinking: "Думаю…",
   },
   searchPage: {
     askAndSearch: "Запрос и поиск",

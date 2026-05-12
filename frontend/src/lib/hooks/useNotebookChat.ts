@@ -30,6 +30,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
   const [messages, setMessages] = useState<NotebookChatMessage[]>([])
   const [isSending, setIsSending] = useState(false)
   const [streamingContent, setStreamingContent] = useState<string | null>(null)
+  const [streamingThinking, setStreamingThinking] = useState<string | null>(null)
   const [tokenCount, setTokenCount] = useState<number>(0)
   const [charCount, setCharCount] = useState<number>(0)
   // Pending model override for when user changes model before a session exists
@@ -211,6 +212,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     setMessages(prev => [...prev, userMessage])
     setIsSending(true)
     setStreamingContent('')   // show empty streaming bubble immediately
+    setStreamingThinking(null)
 
     try {
       const context = await buildContext()
@@ -230,6 +232,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
         (finalMessages) => {
           setMessages(finalMessages)
           setStreamingContent(null)
+          setStreamingThinking(null)
           refetchCurrentSession()
         },
         // onError
@@ -238,6 +241,12 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
           toast.error(getApiErrorMessage(error, (key) => t(key), 'apiErrors.failedToSendMessage'))
           setMessages(prev => prev.filter(msg => !msg.id.startsWith('temp-')))
           setStreamingContent(null)
+          setStreamingThinking(null)
+        },
+        undefined, // signal
+        // onThinking — append thinking tokens to separate state
+        (token) => {
+          setStreamingThinking(prev => (prev ?? '') + token)
         },
       )
     } catch (err: unknown) {
@@ -246,6 +255,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
       toast.error(getApiErrorMessage(error.response?.data?.detail || error.message, (key) => t(key), 'apiErrors.failedToSendMessage'))
       setMessages(prev => prev.filter(msg => !msg.id.startsWith('temp-')))
       setStreamingContent(null)
+      setStreamingThinking(null)
     } finally {
       setIsSending(false)
     }
@@ -320,6 +330,7 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     messages,
     isSending,
     streamingContent,
+    streamingThinking,
     loadingSessions,
     tokenCount,
     charCount,

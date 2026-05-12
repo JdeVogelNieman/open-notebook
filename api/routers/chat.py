@@ -547,20 +547,33 @@ async def build_context(request: BuildContextRequest):
 
 # ── Thinking-tag filter helpers ──────────────────────────────────────────────
 
+class _ThinkFilterResult:
+    """Result from _ThinkFilter.feed() containing both visible and thinking text."""
+
+    __slots__ = ("visible", "thinking")
+
+    def __init__(self, visible: str = "", thinking: str = "") -> None:
+        self.visible = visible
+        self.thinking = thinking
+
+
 class _ThinkFilter:
-    """Stateful filter that strips <think>...</think> blocks from a token stream."""
+    """Stateful filter that separates <think>...</think> blocks from a token stream."""
 
     def __init__(self) -> None:
         self._buf = ""          # partial tag accumulation buffer
         self._in_think = False  # are we inside a <think> block?
 
-    def feed(self, text: str) -> str:
-        """Feed *text* and return the portion that should be sent to the client."""
+    def feed(self, text: str) -> _ThinkFilterResult:
+        """Feed *text* and return visible and thinking portions separately."""
         out_parts: list[str] = []
+        think_parts: list[str] = []
         for ch in text:
             if self._in_think:
                 self._buf += ch
                 if self._buf.endswith("</think>"):
+                    # Emit accumulated thinking content (without the closing tag)
+                    think_parts.append(self._buf[: -len("</think>")])
                     self._in_think = False
                     self._buf = ""
             else:
@@ -575,17 +588,25 @@ class _ThinkFilter:
                     # No partial match for a tag – safe to flush
                     out_parts.append(self._buf)
                     self._buf = ""
-        return "".join(out_parts)
+        # If we're inside a <think> block, emit buffered thinking so far
+        if self._in_think and self._buf:
+            think_parts.append(self._buf)
+            self._buf = ""
+        return _ThinkFilterResult(
+            visible="".join(out_parts),
+            thinking="".join(think_parts),
+        )
 
-    def flush(self) -> str:
+    def flush(self) -> _ThinkFilterResult:
         """Flush any remaining buffer content (call after the stream ends)."""
         if self._in_think:
+            thinking = self._buf
             self._buf = ""
             self._in_think = False
-            return ""
+            return _ThinkFilterResult(thinking=thinking)
         result = self._buf
         self._buf = ""
-        return result
+        return _ThinkFilterResult(visible=result)
 
 
 async def _stream_chat_tokens(
@@ -671,17 +692,21 @@ async def _stream_chat_tokens(
             if not raw:
                 continue
             full_content += raw
-            visible = think_filter.feed(raw)
-            if visible:
-                yield f"data: {json.dumps({'type': 'token', 'content': visible})}\n\n"
+            result = think_filter.feed(raw)
+            if result.thinking:
+                yield f"data: {json.dumps({'type': 'thinking', 'content': result.thinking})}\n\n"
+            if result.visible:
+                yield f"data: {json.dumps({'type': 'token', 'content': result.visible})}\n\n"
     except Exception as e:
         yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
         return
 
     # Flush any buffered tail content
     tail = think_filter.flush()
-    if tail:
-        yield f"data: {json.dumps({'type': 'token', 'content': tail})}\n\n"
+    if tail.thinking:
+        yield f"data: {json.dumps({'type': 'thinking', 'content': tail.thinking})}\n\n"
+    if tail.visible:
+        yield f"data: {json.dumps({'type': 'token', 'content': tail.visible})}\n\n"
 
     # Clean full content (removes any thinking tags that leaked through)
     full_content = clean_thinking_content(full_content)
