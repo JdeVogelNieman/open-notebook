@@ -615,6 +615,7 @@ async def _stream_chat_tokens(
     """Core generator that streams chat tokens as SSE events."""
     from ai_prompter import Prompter
 
+    from open_notebook.graphs.chat import tools as chat_tools
     from open_notebook.utils import clean_thinking_content
 
     # ── 1. Validate session ──────────────────────────────────────────────────
@@ -674,6 +675,21 @@ async def _stream_chat_tokens(
         pass
 
     # ── 4. Build prompt ──────────────────────────────────────────────────────
+    # Resolve notebook_id for tool injection (same pattern as /chat/execute)
+    nb_query = await repo_query(
+        "SELECT out FROM refers_to WHERE in = $session_id",
+        {"session_id": ensure_record_id(full_session_id)},
+    )
+    notebook_id = nb_query[0]["out"] if nb_query else None
+
+    tool_config = RunnableConfig(
+        configurable={
+            "thread_id": full_session_id,
+            "model_id": model_override,
+            "notebook_id": notebook_id,
+        }
+    )
+
     state_for_prompt = {
         "messages": all_messages,
         "context": request.context or context_obj,
@@ -686,12 +702,36 @@ async def _stream_chat_tokens(
 
     payload = [SystemMessage(content=system_prompt)] + all_messages
 
-    # ── 5. Stream model response ─────────────────────────────────────────────
+    # ── 5. Bind tools and stream model response ──────────────────────────────
     full_content = ""
     think_filter = _ThinkFilter()
+    tool_call_chunks: list = []
+    accumulated_tool_calls: dict = {}  # index → tool call accumulator
+
+    # Try to bind tools; fall back gracefully if the model does not support it
+    try:
+        model_with_tools = model.bind_tools(chat_tools)
+    except Exception:
+        model_with_tools = model
 
     try:
-        async for chunk in model.astream(payload):
+        async for chunk in model_with_tools.astream(payload):
+            # Collect tool call chunks (structured output from the model)
+            if hasattr(chunk, "tool_call_chunks") and chunk.tool_call_chunks:
+                for tc_chunk in chunk.tool_call_chunks:
+                    idx = tc_chunk.get("index", 0) if isinstance(tc_chunk, dict) else getattr(tc_chunk, "index", 0)
+                    if idx not in accumulated_tool_calls:
+                        accumulated_tool_calls[idx] = {"name": "", "id": "", "args": ""}
+                    tc = accumulated_tool_calls[idx]
+                    name = (tc_chunk.get("name", "") if isinstance(tc_chunk, dict) else getattr(tc_chunk, "name", "")) or ""
+                    id_ = (tc_chunk.get("id", "") if isinstance(tc_chunk, dict) else getattr(tc_chunk, "id", "")) or ""
+                    args = (tc_chunk.get("args", "") if isinstance(tc_chunk, dict) else getattr(tc_chunk, "args", "")) or ""
+                    if name:
+                        tc["name"] = name
+                    if id_:
+                        tc["id"] = id_
+                    tc["args"] += args
+
             raw: str = ""
             c = chunk.content
             if isinstance(c, str):
@@ -733,13 +773,113 @@ async def _stream_chat_tokens(
     # Clean full content (removes any thinking tags that leaked through)
     full_content = clean_thinking_content(full_content)
 
+    # ── 5b. Execute tool calls if the model requested any ────────────────────
+    messages_to_persist = [human_message]
+    added_sources: list[str] = []
+
+    if accumulated_tool_calls:
+        import json as _json
+
+        from langchain_core.messages import ToolMessage
+
+        # Build the AIMessage that contains the tool calls
+        tool_calls_list = []
+        for tc in accumulated_tool_calls.values():
+            try:
+                parsed_args = _json.loads(tc["args"]) if tc["args"] else {}
+            except Exception:
+                parsed_args = {}
+            tool_calls_list.append({
+                "name": tc["name"],
+                "id": tc["id"] or tc["name"],
+                "args": parsed_args,
+            })
+
+        ai_tool_call_message = AIMessage(content="", tool_calls=tool_calls_list)
+        messages_to_persist.append(ai_tool_call_message)
+
+        # Build a map of tool name → callable
+        tool_map = {t.name: t for t in chat_tools}
+
+        tool_results: list = []
+        for tc in tool_calls_list:
+            tool_name = tc["name"]
+            yield f"data: {json.dumps({'type': 'tool_executing', 'tool': tool_name})}\n\n"
+
+            tool_fn = tool_map.get(tool_name)
+            if tool_fn is None:
+                tool_output = f"Gereedschap '{tool_name}' niet gevonden."
+            else:
+                try:
+                    tool_output = await asyncio.to_thread(
+                        tool_fn.invoke, tc["args"], tool_config
+                    )
+                except Exception as tool_err:
+                    tool_output = f"Fout bij uitvoeren van {tool_name}: {tool_err}"
+
+            tool_msg = ToolMessage(
+                content=str(tool_output),
+                tool_call_id=tc["id"] or tool_name,
+                name=tool_name,
+            )
+            messages_to_persist.append(tool_msg)
+            tool_results.append(tool_msg)
+
+            # Track added sources for the done event
+            if tool_name == "summarize_transcription_to_word":
+                added_sources.append(str(tool_output))
+
+        # ── Follow-up model call with tool results ────────────────────────
+        follow_up_payload = payload + [ai_tool_call_message] + tool_results
+        follow_up_content = ""
+        follow_up_think = _ThinkFilter()
+
+        try:
+            async for chunk in model.astream(follow_up_payload):
+                raw = ""
+                c = chunk.content
+                if isinstance(c, str):
+                    raw = c
+                elif isinstance(c, list):
+                    raw = "".join(
+                        item.get("text", "") for item in c if isinstance(item, dict)
+                    )
+
+                reasoning_content = ""
+                if hasattr(chunk, "additional_kwargs") and chunk.additional_kwargs:
+                    reasoning_content = chunk.additional_kwargs.get("reasoning_content", "")
+                if reasoning_content:
+                    yield f"data: {json.dumps({'type': 'thinking', 'content': reasoning_content})}\n\n"
+
+                if not raw:
+                    continue
+                follow_up_content += raw
+                res = follow_up_think.feed(raw)
+                if res.thinking:
+                    yield f"data: {json.dumps({'type': 'thinking', 'content': res.thinking})}\n\n"
+                if res.visible:
+                    yield f"data: {json.dumps({'type': 'token', 'content': res.visible})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+            return
+
+        tail2 = follow_up_think.flush()
+        if tail2.thinking:
+            yield f"data: {json.dumps({'type': 'thinking', 'content': tail2.thinking})}\n\n"
+        if tail2.visible:
+            yield f"data: {json.dumps({'type': 'token', 'content': tail2.visible})}\n\n"
+
+        follow_up_content = clean_thinking_content(follow_up_content)
+        messages_to_persist.append(AIMessage(content=follow_up_content))
+    else:
+        messages_to_persist.append(AIMessage(content=full_content))
+
     # ── 6. Persist to LangGraph state ────────────────────────────────────────
-    ai_message = AIMessage(content=full_content)
     try:
         await asyncio.to_thread(
             chat_graph.update_state,
             config,
-            {"messages": [human_message, ai_message]},
+            {"messages": messages_to_persist},
         )
     except Exception as e:
         logger.warning(f"Failed to persist chat state after streaming: {e}")
@@ -769,7 +909,7 @@ async def _stream_chat_tokens(
         logger.warning(f"Error fetching final state: {e}")
         messages_out = []
 
-    yield f"data: {json.dumps({'type': 'done', 'messages': messages_out, 'added_sources': []})}\n\n"
+    yield f"data: {json.dumps({'type': 'done', 'messages': messages_out, 'added_sources': added_sources})}\n\n"
 
 
 @router.post("/chat/stream")

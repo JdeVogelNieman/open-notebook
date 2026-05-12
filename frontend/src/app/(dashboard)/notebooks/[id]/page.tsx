@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { AppShell } from '@/components/layout/AppShell'
 import { NotebookHeader } from '../components/NotebookHeader'
@@ -14,9 +14,10 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { useNotebookColumnsStore } from '@/lib/stores/notebook-columns-store'
 import { useIsDesktop } from '@/lib/hooks/use-media-query'
 import { useTranslation } from '@/lib/hooks/use-translation'
-import { cn } from '@/lib/utils'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FileText, MessageSquare, FileOutput } from 'lucide-react'
+import { SourceListResponse } from '@/lib/types/api'
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle, usePanelRef } from 'react-resizable-panels'
 
 export type ContextMode = 'off' | 'insights' | 'full'
 
@@ -44,13 +45,39 @@ export default function NotebookPage() {
   const { data: notes } = useNotes(notebookId)
 
   // Get collapse states for dynamic layout
-  const { sourcesCollapsed, previewCollapsed } = useNotebookColumnsStore()
+  const { sourcesCollapsed, previewCollapsed, setSources, setPreview } = useNotebookColumnsStore()
 
   // Detect desktop to avoid double-mounting ChatColumn
   const isDesktop = useIsDesktop()
 
   // Mobile tab state (Sources, Chat, or Preview)
   const [mobileActiveTab, setMobileActiveTab] = useState<'sources' | 'chat' | 'preview'>('chat')
+
+  // Preview source state – set when user drags or clicks "Send to Preview"
+  const [previewSource, setPreviewSource] = useState<SourceListResponse | null>(null)
+
+  // Ref to imperatively collapse/expand the preview panel
+  const previewPanelRef = usePanelRef()
+  const sourcePanelRef = usePanelRef()
+  // Guard flag to prevent sync loops when we programmatically collapse/expand
+  const skipPanelSync = useRef(false)
+
+  // Sync Zustand collapse state → panel (on external toggle button click)
+  useEffect(() => {
+    skipPanelSync.current = true
+    if (previewCollapsed) previewPanelRef.current?.collapse()
+    else previewPanelRef.current?.expand()
+    const t = setTimeout(() => { skipPanelSync.current = false }, 150)
+    return () => clearTimeout(t)
+  }, [previewCollapsed, previewPanelRef])
+
+  useEffect(() => {
+    skipPanelSync.current = true
+    if (sourcesCollapsed) sourcePanelRef.current?.collapse()
+    else sourcePanelRef.current?.expand()
+    const t = setTimeout(() => { skipPanelSync.current = false }, 150)
+    return () => clearTimeout(t)
+  }, [sourcesCollapsed, sourcePanelRef])
 
   // Context selection state
   const [contextSelections, setContextSelections] = useState<ContextSelections>({
@@ -170,6 +197,7 @@ export default function NotebookPage() {
                     hasNextPage={hasNextPage}
                     isFetchingNextPage={isFetchingNextPage}
                     fetchNextPage={fetchNextPage}
+                    onSendToPreview={setPreviewSource}
                   />
                 )}
                 {mobileActiveTab === 'chat' && (
@@ -184,57 +212,95 @@ export default function NotebookPage() {
                   <PreviewColumn
                     notebookId={notebookId}
                     notebookName={notebook?.name}
+                    previewSource={previewSource}
+                    onPreviewSourceChange={setPreviewSource}
                   />
                 )}
               </div>
             </>
           )}
 
-          {/* Desktop: Collapsible columns layout */}
-          <div className={cn(
-            'hidden lg:flex h-full min-h-0 gap-6 transition-all duration-150',
-            'flex-row'
-          )}>
-            {/* Sources Column */}
-            <div className={cn(
-              'transition-all duration-150',
-              sourcesCollapsed ? 'w-12 flex-shrink-0' : 'flex-none basis-1/4'
-            )}>
-              <SourcesColumn
-                sources={sources}
-                isLoading={sourcesLoading}
-                notebookId={notebookId}
-                notebookName={notebook?.name}
-                onRefresh={refetchSources}
-                contextSelections={contextSelections.sources}
-                onContextModeChange={(sourceId, mode) => handleContextModeChange(sourceId, mode, 'source')}
-                hasNextPage={hasNextPage}
-                isFetchingNextPage={isFetchingNextPage}
-                fetchNextPage={fetchNextPage}
-              />
-            </div>
+          {/* Desktop: All three columns in a single resizable PanelGroup */}
+          <PanelGroup orientation="horizontal" className="hidden lg:flex h-full min-h-0">
+            {/* Sources Panel – slightly wider default */}
+            <Panel
+              panelRef={sourcePanelRef}
+              defaultSize={28}
+              minSize={5}
+              collapsible
+              collapsedSize="48px"
+              onResize={(size) => {
+                if (skipPanelSync.current) return
+                const collapsed = size.inPixels <= 50
+                if (collapsed !== useNotebookColumnsStore.getState().sourcesCollapsed) {
+                  setSources(collapsed)
+                }
+              }}
+            >
+              <div className="h-full pr-1">
+                <SourcesColumn
+                  sources={sources}
+                  isLoading={sourcesLoading}
+                  notebookId={notebookId}
+                  notebookName={notebook?.name}
+                  onRefresh={refetchSources}
+                  contextSelections={contextSelections.sources}
+                  onContextModeChange={(sourceId, mode) => handleContextModeChange(sourceId, mode, 'source')}
+                  hasNextPage={hasNextPage}
+                  isFetchingNextPage={isFetchingNextPage}
+                  fetchNextPage={fetchNextPage}
+                  onSendToPreview={setPreviewSource}
+                />
+              </div>
+            </Panel>
 
-            {/* Chat Column - middle, takes remaining space */}
-            <div className="transition-all duration-150 flex-1 min-w-0">
-              <ChatColumn
-                notebookId={notebookId}
-                contextSelections={contextSelections}
-                sources={sources}
-                sourcesLoading={sourcesLoading}
-              />
-            </div>
+            {/* Resize handle: Sources ↔ Chat */}
+            <PanelResizeHandle className="w-2 flex items-center justify-center group cursor-col-resize">
+              <div className="w-0.5 h-12 rounded-full bg-border group-hover:bg-primary group-active:bg-primary transition-colors" />
+            </PanelResizeHandle>
 
-            {/* Preview Column */}
-            <div className={cn(
-              'transition-all duration-150',
-              previewCollapsed ? 'w-12 flex-shrink-0' : 'flex-none basis-1/3 lg:pr-6 lg:-mr-6'
-            )}>
-              <PreviewColumn
-                notebookId={notebookId}
-                notebookName={notebook?.name}
-              />
-            </div>
-          </div>
+            {/* Chat Panel */}
+            <Panel defaultSize={37} minSize={20}>
+              <div className="h-full px-1">
+                <ChatColumn
+                  notebookId={notebookId}
+                  contextSelections={contextSelections}
+                  sources={sources}
+                  sourcesLoading={sourcesLoading}
+                />
+              </div>
+            </Panel>
+
+            {/* Resize handle: Chat ↔ Preview */}
+            <PanelResizeHandle className="w-2 flex items-center justify-center group cursor-col-resize">
+              <div className="w-0.5 h-12 rounded-full bg-border group-hover:bg-primary group-active:bg-primary transition-colors" />
+            </PanelResizeHandle>
+
+            {/* Preview Panel */}
+            <Panel
+              panelRef={previewPanelRef}
+              defaultSize={35}
+              minSize={5}
+              collapsible
+              collapsedSize="48px"
+              onResize={(size) => {
+                if (skipPanelSync.current) return
+                const collapsed = size.inPixels <= 50
+                if (collapsed !== useNotebookColumnsStore.getState().previewCollapsed) {
+                  setPreview(collapsed)
+                }
+              }}
+            >
+              <div className="h-full pl-1">
+                <PreviewColumn
+                  notebookId={notebookId}
+                  notebookName={notebook?.name}
+                  previewSource={previewSource}
+                  onPreviewSourceChange={setPreviewSource}
+                />
+              </div>
+            </Panel>
+          </PanelGroup>
         </div>
       </div>
     </AppShell>

@@ -32,6 +32,7 @@ interface SourcesColumnProps {
   onRefresh?: () => void
   contextSelections?: Record<string, ContextMode>
   onContextModeChange?: (sourceId: string, mode: ContextMode) => void
+  onSendToPreview?: (source: SourceListResponse) => void
   // Pagination props
   hasNextPage?: boolean
   isFetchingNextPage?: boolean
@@ -45,6 +46,7 @@ export function SourcesColumn({
   onRefresh,
   contextSelections,
   onContextModeChange,
+  onSendToPreview,
   hasNextPage,
   isFetchingNextPage,
   fetchNextPage,
@@ -210,6 +212,7 @@ export function SourcesColumn({
                       ? (mode) => onContextModeChange(source.id, mode)
                       : undefined
                     }
+                    onSendToPreview={onSendToPreview}
                   />
                 ))}
                 {/* Loading indicator for infinite scroll */}

@@ -9,6 +9,9 @@
 #   2. Start user instances:          docker compose -f docker-compose.user1.yml up -d
 #                                     docker compose -f docker-compose.user2.yml up -d
 #
+# Rebuild:
+#   docker compose -f docker-compose.user1.yml up -d --no-deps --build
+#
 # Pull Ollama models after first start:
 #   docker exec ollama ollama pull mistral
 #   docker exec ollama ollama pull nomic-embed-text
@@ -22,6 +25,12 @@ services:
       - "11434:11434"
     volumes:
       - ollama_models:/root/.ollama
+      - ./scripts/ollama-preload.sh:/ollama-entrypoint.sh:ro
+    environment:
+      - OLLAMA_KEEP_ALIVE=-1              # Never evict models from memory
+      - PREFERRED_MODEL=gemma4            # Model to preload (change as needed)
+      - OLLAMA_FLASH_ATTENTION=1          # Enable flash attention for better performance (if supported)
+    entrypoint: ["/bin/sh", "/ollama-entrypoint.sh"]
     networks:
       - notebook_network
     restart: always
@@ -41,6 +50,8 @@ services:
       - "8969:8000"
     volumes:
       - hf-hub-cache:/home/ubuntu/.cache/huggingface/hub
+      - ./scripts/speaches-entrypoint.sh:/speaches-entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/speaches-entrypoint.sh"]
     networks:
       - notebook_network
     restart: unless-stopped

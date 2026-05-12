@@ -37,12 +37,12 @@ export function useSourceChat(sourceId: string) {
     enabled: !!sourceId && !!currentSessionId
   })
 
-  // Update messages when session changes
+  // Update messages when session changes (skip during streaming to preserve optimistic messages)
   useEffect(() => {
-    if (currentSession?.messages) {
+    if (currentSession?.messages && !isStreaming) {
       setMessages(currentSession.messages)
     }
-  }, [currentSession])
+  }, [currentSession, isStreaming])
 
   // Auto-select most recent session when sessions are loaded
   useEffect(() => {

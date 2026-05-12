@@ -122,7 +122,163 @@ def search_documents(query: str, config: RunnableConfig) -> str:
     return _run_async(_search())
 
 
-tools = [search_documents]
+@tool
+def summarize_transcription_to_word(
+    config: RunnableConfig,
+    template_source_id: Optional[str] = None,
+    source_ids: Optional[list] = None,
+    existing_summary: Optional[str] = None,
+) -> str:
+    """Maak een Word-document met vergadernotulen vanuit transcriptieteksten in het notebook.
+
+    Gebruik dit gereedschap wanneer de gebruiker vraagt om:
+    - Een transcriptie om te zetten naar notulen
+    - Een samenvatting te maken in Word-formaat
+    - Een vergaderverslag te genereren
+
+    Het gereedschap haalt automatisch transcriptieteksten en een Word-sjabloon op uit de bronnen van het notebook.
+    Als het sjabloon onduidelijk is, geeft het gereedschap een vraag terug voor de gebruiker.
+
+    Args:
+        template_source_id: Optioneel. Bron-ID van de Word-sjabloon (.docx) als de gebruiker die heeft opgegeven.
+        source_ids: Optioneel. Lijst van bron-IDs om als transcriptietekst te gebruiken. Als leeg, worden alle tekstbronnen gebruikt.
+        existing_summary: Optioneel. Als de chatbot al een tekstsamenvatting heeft gemaakt in dit gesprek,
+            geef die hier door. De eerste LLM-stap (transcriptie → JSON) wordt dan overgeslagen en
+            de samenvatting wordt direct omgezet naar het vereiste JSON-formaat, wat sneller is.
+
+    Returns:
+        Bevestiging met het nieuwe bron-ID, of een verduidelijkingsvraag als het sjabloon onduidelijk is.
+    """
+    notebook_id: Optional[str] = (config.get("configurable") or {}).get("notebook_id")
+
+    async def _run() -> str:
+        import shutil
+
+        from open_notebook.config import UPLOADS_FOLDER
+        from open_notebook.domain.notebook import Asset, Notebook, Source
+
+        if not notebook_id:
+            return "Geen notebook beschikbaar. Kan geen notulen genereren."
+
+        notebook = await Notebook.get(str(notebook_id))
+        if not notebook:
+            return "Notebook niet gevonden."
+
+        all_sources = await notebook.get_sources()
+        if not all_sources:
+            return "Dit notebook heeft geen bronnen. Voeg eerst transcriptieteksten toe als bron."
+
+        # Fetch full_text for each source to determine type
+        transcription_sources = []
+        template_sources = []
+
+        for src in all_sources:
+            asset = getattr(src, "asset", None)
+            file_path = asset.file_path if asset else None
+            is_docx = file_path and str(file_path).lower().endswith(".docx")
+
+            if is_docx:
+                template_sources.append(src)
+            else:
+                transcription_sources.append(src)
+
+        # Resolve explicit template source override
+        if template_source_id:
+            full_tid = (
+                template_source_id
+                if template_source_id.startswith("source:")
+                else f"source:{template_source_id}"
+            )
+            try:
+                explicit_template = await Source.get(full_tid)
+                asset = getattr(explicit_template, "asset", None)
+                if not (asset and asset.file_path and str(asset.file_path).lower().endswith(".docx")):
+                    return f"Bron '{template_source_id}' is geen Word-bestand (.docx). Geef een geldige Word-sjabloon op."
+                selected_template = explicit_template
+            except Exception:
+                return f"Bron '{template_source_id}' kon niet worden gevonden."
+        elif len(template_sources) == 1:
+            selected_template = template_sources[0]
+        elif len(template_sources) == 0:
+            return (
+                "Er is geen Word-sjabloon (.docx) gevonden in het notebook. "
+                "Voeg een Word-sjabloon toe als bron en probeer het opnieuw."
+            )
+        else:
+            names = ", ".join(
+                f"'{s.title or s.id}'" for s in template_sources
+            )
+            return (
+                f"Er zijn meerdere Word-sjablonen gevonden: {names}. "
+                "Welk sjabloon wil je gebruiken? Noem de naam of het bron-ID."
+            )
+
+        # Filter transcription sources by explicit source_ids if given
+        if source_ids:
+            norm_ids = {
+                sid if sid.startswith("source:") else f"source:{sid}"
+                for sid in source_ids
+            }
+            transcription_sources = [s for s in transcription_sources if str(s.id) in norm_ids]
+
+        # When existing_summary is provided we don't need source text
+        combined_text = ""
+        if not existing_summary:
+            if not transcription_sources:
+                return "Geen transcriptieteksten gevonden in het notebook. Voeg eerst transcriptieteksten toe als bron."
+
+            texts = []
+            for src in transcription_sources:
+                try:
+                    full_src = await Source.get(str(src.id))
+                    if full_src and full_src.full_text:
+                        texts.append(f"# {full_src.title or 'Bron'}\n\n{full_src.full_text}")
+                except Exception:
+                    pass
+
+            if not texts:
+                return "Geen transcriptietekst gevonden in de bronnen. Zorg dat de bronnen verwerkt zijn."
+
+            combined_text = "\n\n---\n\n".join(texts)
+
+        template_path = selected_template.asset.file_path  # type: ignore[union-attr]
+
+        # Generate the Word document
+        try:
+            from api.transcription_to_word import main as generate_word
+
+            output_path = generate_word(
+                transcription_text=combined_text,
+                template_word_path=template_path,
+                output_dir=UPLOADS_FOLDER,
+                existing_summary=existing_summary or None,
+            )
+        except Exception as e:
+            return f"Fout bij het genereren van het Word-document: {e}"
+
+        # Register the generated document as a new source
+        try:
+            import os
+            output_filename = os.path.basename(output_path)
+            new_source = Source(
+                title=f"Notulen - {output_filename}",
+                asset=Asset(file_path=output_path),
+            )
+            await new_source.save()
+            await new_source.add_to_notebook(str(notebook_id))
+
+            return (
+                f"Het Word-document met notulen is aangemaakt en toegevoegd aan het notebook. "
+                f"Bron-ID: [{new_source.id}]. "
+                f"Bestandsnaam: {output_filename}."
+            )
+        except Exception as e:
+            return f"Word-document gegenereerd ({output_path}), maar kon niet worden opgeslagen als bron: {e}"
+
+    return _run_async(_run())
+
+
+tools = [search_documents, summarize_transcription_to_word]
 
 
 def call_model_with_messages(state: ThreadState, config: RunnableConfig) -> dict:

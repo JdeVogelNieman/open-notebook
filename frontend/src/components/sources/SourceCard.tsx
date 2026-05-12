@@ -23,7 +23,8 @@ import {
   CheckCircle,
   AlertTriangle,
   Loader2,
-  Unlink
+  Unlink,
+  Eye
 } from 'lucide-react'
 import { useSourceStatus } from '@/lib/hooks/use-sources'
 import { useTranslation } from '@/lib/hooks/use-translation'
@@ -39,6 +40,7 @@ interface SourceCardProps {
   onRemoveFromNotebook?: (sourceId: string) => void
   onClick?: (sourceId: string) => void
   onRefresh?: () => void
+  onSendToPreview?: (source: SourceListResponse) => void
   className?: string
   showRemoveFromNotebook?: boolean
   contextMode?: ContextMode
@@ -114,6 +116,7 @@ export function SourceCard({
   onRetry,
   onRemoveFromNotebook,
   onRefresh,
+  onSendToPreview,
   className,
   showRemoveFromNotebook = false,
   contextMode,
@@ -198,6 +201,20 @@ export function SourceCard({
     }
   }
 
+  const isPreviewable = sourceType === 'upload' && !!source.asset?.file_path
+  const fileExt = source.asset?.file_path?.split('.').pop()?.toLowerCase() ?? ''
+  const canPreview = isPreviewable && (fileExt === 'pdf' || fileExt === 'docx' || fileExt === 'doc')
+
+  const handleSendToPreview = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onSendToPreview?.(source)
+  }
+
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    e.dataTransfer.setData('application/json', JSON.stringify(source))
+    e.dataTransfer.effectAllowed = 'copy'
+  }
+
   const isProcessing: boolean = currentStatus === 'new' || currentStatus === 'running' || currentStatus === 'queued'
   const isFailed: boolean = currentStatus === 'failed'
   const isCompleted: boolean = currentStatus === 'completed'
@@ -206,9 +223,12 @@ export function SourceCard({
     <Card
       className={cn(
         'transition-all duration-200 hover:shadow-md group relative cursor-pointer border border-border/60 dark:border-border/40',
+        canPreview && 'cursor-grab active:cursor-grabbing',
         className
       )}
       onClick={handleCardClick}
+      draggable={canPreview}
+      onDragStart={canPreview ? handleDragStart : undefined}
     >
       <CardContent className="px-3 py-1">
         {/* Header with status indicator */}
@@ -293,6 +313,19 @@ export function SourceCard({
                 hasInsights={source.insights_count > 0}
                 onChange={onContextModeChange}
               />
+            )}
+
+            {/* Send to Preview button - only for previewable upload sources */}
+            {canPreview && onSendToPreview && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={handleSendToPreview}
+                title="Send to Preview"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
             )}
 
             {/* Actions dropdown */}

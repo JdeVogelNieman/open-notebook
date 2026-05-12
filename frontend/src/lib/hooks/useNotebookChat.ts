@@ -57,12 +57,12 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
     enabled: !!notebookId && !!currentSessionId
   })
 
-  // Update messages when current session changes
+  // Update messages when current session changes (skip during sending to preserve optimistic messages)
   useEffect(() => {
-    if (currentSession?.messages) {
+    if (currentSession?.messages && !isSending) {
       setMessages(currentSession.messages)
     }
-  }, [currentSession])
+  }, [currentSession, isSending])
 
   // Auto-select most recent session when sessions are loaded
   useEffect(() => {
@@ -229,11 +229,15 @@ export function useNotebookChat({ notebookId, sources, notes, contextSelections 
           setStreamingContent(prev => (prev ?? '') + token)
         },
         // onDone — replace optimistic messages with final server state
-        (finalMessages) => {
+        (finalMessages, addedSources) => {
           setMessages(finalMessages)
           setStreamingContent(null)
           setStreamingThinking(null)
           refetchCurrentSession()
+          if (addedSources && addedSources.length > 0) {
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sources(notebookId) })
+            queryClient.invalidateQueries({ queryKey: QUERY_KEYS.sourcesInfinite(notebookId) })
+          }
         },
         // onError
         (error) => {
